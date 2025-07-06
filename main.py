@@ -405,33 +405,70 @@ def menu_callback(call):
 	bot.answer_callback_query(call.id, "Bot will stop processing further tasks.")
 	bot.send_message(call.message.chat.id, "The bot has been stopped. No further tasks will be processed.")
 	
-@bot.message_handler(commands=["show_auth_users", "sau", "see_list"])
+@bot.message_handler(commands=["show_auth_users", "sau", "see_list", "users"])
 def show_auth_users(message):
     if str(message.from_user.id) in owners:  # Check if the sender is an owner
         try:
             with open("id.txt", "r") as file:
                 allowed_ids = file.readlines()
+            
             if not allowed_ids:
-                bot.reply_to(message, "No authorized users found.")
+                bot.reply_to(message, "📊 <b>User Statistics</b>\n\n👥 <b>Total Users:</b> 0\n📝 <b>Status:</b> No authorized users found.", parse_mode="HTML")
                 return
             
+            # Count total users
+            total_users = len(allowed_ids)
+            
             # Prepare the message with user IDs and usernames
-            user_list = "Authorized Users:\n\n"
-            for user_id in allowed_ids:
+            user_list = f"📊 <b>User Statistics</b>\n\n👥 <b>Total Users:</b> {total_users}\n\n📋 <b>Authorized Users:</b>\n"
+            
+            for i, user_id in enumerate(allowed_ids, 1):
                 user_id = user_id.strip()  # Clean any extra spaces/newlines
                 try:
                     user = bot.get_chat(user_id)
                     username = user.username or "No Username"
-                    user_list += f"• {username} (ID: {user_id})\n"
+                    first_name = user.first_name or "N/A"
+                    user_list += f"{i}. @{username} ({first_name})\n   ID: <code>{user_id}</code>\n\n"
                 except Exception as e:
-                    user_list += f"• User ID: {user_id} (Username not found)\n"
+                    user_list += f"{i}. User ID: <code>{user_id}</code>\n   Status: Username not found\n\n"
+            
+            # Add summary
+            user_list += f"📈 <b>Summary:</b>\n• Total Authorized Users: {total_users}\n• Owner: @god_forever\n• Bot Status: Active ✅"
             
             # Send the list to the owner
-            bot.reply_to(message, user_list)
+            bot.reply_to(message, user_list, parse_mode="HTML")
         except FileNotFoundError:
-            bot.reply_to(message, "id.txt file not found. No authorized users.")
+            bot.reply_to(message, "📊 <b>User Statistics</b>\n\n❌ <b>Error:</b> id.txt file not found.\n👥 <b>Total Users:</b> 0", parse_mode="HTML")
     else:
-        bot.reply_to(message, "You are not authorized to view the list of authorized users.")
+        bot.reply_to(message, "🚫 You are not authorized to view user statistics.")
+
+@bot.message_handler(commands=["stats", "count", "user_count"])
+def user_stats(message):
+    if str(message.from_user.id) in owners:  # Check if the sender is an owner
+        try:
+            with open("id.txt", "r") as file:
+                allowed_ids = file.readlines()
+            
+            total_users = len(allowed_ids) if allowed_ids else 0
+            
+            stats_message = f"""
+📊 <b>Quick User Statistics</b>
+
+👥 <b>Total Users:</b> {total_users}
+👑 <b>Owner:</b> @god_forever
+🤖 <b>Bot Status:</b> Active ✅
+
+💡 <b>Commands:</b>
+• /users - Detailed user list
+• /stats - Quick statistics
+• /add USER_ID - Add user
+• /remove USER_ID - Remove user
+"""
+            bot.reply_to(message, stats_message, parse_mode="HTML")
+        except FileNotFoundError:
+            bot.reply_to(message, "📊 <b>Quick Statistics</b>\n\n👥 <b>Total Users:</b> 0\n❌ <b>Error:</b> id.txt not found", parse_mode="HTML")
+    else:
+        bot.reply_to(message, "🚫 You are not authorized to view statistics.")
 
 @bot.message_handler(commands=["chatid"])
 def get_chat_id(message):
