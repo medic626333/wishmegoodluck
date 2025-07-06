@@ -100,6 +100,10 @@ def generate_code(message):
             # Format expiration date
             expiration_date = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(expiration_time))
             
+            # Get bot username
+            bot_info = bot.get_me()
+            bot_username = bot_info.username
+            
             bot.reply_to(
                 message, 
                 f"<b>🎉 New Redeem Code Generated 🎉</b>\n\n"
@@ -107,7 +111,8 @@ def generate_code(message):
                 f"<b>Duration:</b> {duration_days} day(s)\n"
                 f"<b>Expires:</b> {expiration_date}\n\n"
                 f"<code>/redeem {new_code}</code>\n"
-                f"Use this code to redeem your access!",
+                f"Use this code to redeem your access!\n\n"
+                f"🤖 <b>Bot:</b> @{bot_username}",
                 parse_mode="HTML"
             )
         except Exception as e:
