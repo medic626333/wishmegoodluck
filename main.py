@@ -57,28 +57,61 @@ def remove_user(user_id):
     except FileNotFoundError:
         print("id.txt file not found. Cannot remove user.")
         
-valid_redeem_codes = []
+valid_redeem_codes = {}  # Changed to dictionary to store code info
 
-def generate_redeem_code():
+def generate_redeem_code(duration_days=1):
     prefix = "BLACK"
     suffix = "NUGGET"
     main_code = '-'.join(''.join(random.choices(string.ascii_uppercase + string.digits, k=4)) for _ in range(3))
     code = f"{prefix}-{main_code}-{suffix}"
-    return code
+    
+    # Calculate expiration time
+    expiration_time = time.time() + (duration_days * 24 * 60 * 60)
+    
+    # Store code with expiration info
+    valid_redeem_codes[code] = {
+        'expiration': expiration_time,
+        'duration_days': duration_days,
+        'created_by': 'owner'
+    }
+    
+    return code, expiration_time
 
 @bot.message_handler(commands=["code"])
 def generate_code(message):
     if str(message.chat.id) == '1172862169':
-        new_code = generate_redeem_code()
-        valid_redeem_codes.append(new_code)
-        bot.reply_to(
-            message, 
-            f"<b>🎉 New Redeem Code 🎉</b>\n\n"
-            f"<code>{new_code}</code>\n\n"
-            f"<code>/redeem {new_code}</code>\n"
-            f"Use this code to redeem your access!",
-            parse_mode="HTML"
-        )
+        try:
+            # Parse duration from command
+            parts = message.text.split()
+            duration_days = 1  # Default 1 day
+            
+            if len(parts) > 1:
+                try:
+                    duration_days = int(parts[1])
+                    if duration_days < 1:
+                        duration_days = 1
+                    elif duration_days > 365:
+                        duration_days = 365  # Max 1 year
+                except ValueError:
+                    duration_days = 1
+            
+            new_code, expiration_time = generate_redeem_code(duration_days)
+            
+            # Format expiration date
+            expiration_date = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(expiration_time))
+            
+            bot.reply_to(
+                message, 
+                f"<b>🎉 New Redeem Code Generated 🎉</b>\n\n"
+                f"<b>Code:</b> <code>{new_code}</code>\n"
+                f"<b>Duration:</b> {duration_days} day(s)\n"
+                f"<b>Expires:</b> {expiration_date}\n\n"
+                f"<code>/redeem {new_code}</code>\n"
+                f"Use this code to redeem your access!",
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            bot.reply_to(message, f"Error generating code: {str(e)}")
     else:
         bot.reply_to(message, "You do not have permission to generate redeem codes.🚫")
 
@@ -89,28 +122,51 @@ def redeem_code(message):
     try:
         redeem_code = message.text.split()[1]
     except IndexError:
-        bot.reply_to(message, "Please provide a valid redeem code. Example: /redeem DRACO-XXXX-XXXX-XXXX-OP")
+        bot.reply_to(message, "Please provide a valid redeem code. Example: /redeem BLACK-XXXX-XXXX-XXXX-NUGGET")
         return
 
     if redeem_code in valid_redeem_codes:
+        code_info = valid_redeem_codes[redeem_code]
+        current_time = time.time()
+        
+        # Check if code has expired
+        if current_time > code_info['expiration']:
+            # Remove expired code
+            del valid_redeem_codes[redeem_code]
+            bot.reply_to(message, "This redeem code has expired. Please contact @god_forever for a new code.")
+            return
+        
         if is_user_allowed(message.chat.id):
             bot.reply_to(message, "You already have access to the bot. Redeeming again is not allowed.")
         else:
             add_user(message.chat.id)
-            valid_redeem_codes.remove(redeem_code)
+            # Remove the used code
+            del valid_redeem_codes[redeem_code]
+            
+            # Calculate remaining time
+            remaining_time = code_info['expiration'] - current_time
+            remaining_days = int(remaining_time // (24 * 60 * 60))
+            remaining_hours = int((remaining_time % (24 * 60 * 60)) // (60 * 60))
+            
             bot.reply_to(
                 message, 
-                f"Redeem code {redeem_code} has been successfully redeemed.✅ You now have access to the bot."
+                f"<b>✅ Redeem Code Successfully Redeemed!</b>\n\n"
+                f"<b>Code:</b> <code>{redeem_code}</code>\n"
+                f"<b>Duration:</b> {code_info['duration_days']} day(s)\n"
+                f"<b>Access Granted:</b> {remaining_days}d {remaining_hours}h remaining\n\n"
+                f"You now have access to the bot! 🎉",
+                parse_mode="HTML"
             )
             
             # Log the redemption to the logs group
             username = message.from_user.username or "No Username"
             log_message = (
-                f"<b>Redeem Code Redeemed</b>\n"
-                f"Code: <code>{redeem_code}</code>\n"
-                f"By: @{username} (ID: <code>{message.chat.id}</code>)"
+                f"<b>🎉 Redeem Code Redeemed</b>\n"
+                f"<b>Code:</b> <code>{redeem_code}</code>\n"
+                f"<b>Duration:</b> {code_info['duration_days']} day(s)\n"
+                f"<b>By:</b> @{username} (ID: <code>{message.chat.id}</code>)"
             )
-            bot.send_message(LOGS_GROUP_CHAT_ID, log_message)
+            bot.send_message(LOGS_GROUP_CHAT_ID, log_message, parse_mode="HTML")
     else:
         bot.reply_to(message, "Invalid redeem code. Please check and try again.")
 
@@ -441,6 +497,38 @@ def show_auth_users(message):
             bot.reply_to(message, "📊 <b>User Statistics</b>\n\n❌ <b>Error:</b> id.txt file not found.\n👥 <b>Total Users:</b> 0", parse_mode="HTML")
     else:
         bot.reply_to(message, "🚫 You are not authorized to view user statistics.")
+
+@bot.message_handler(commands=["codes", "active_codes"])
+def show_active_codes(message):
+    if str(message.from_user.id) in owners:  # Check if the sender is an owner
+        if not valid_redeem_codes:
+            bot.reply_to(message, "📋 <b>Active Redeem Codes</b>\n\n❌ No active codes found.", parse_mode="HTML")
+            return
+        
+        codes_message = "📋 <b>Active Redeem Codes</b>\n\n"
+        current_time = time.time()
+        
+        for code, info in valid_redeem_codes.items():
+            # Check if code is expired
+            if current_time > info['expiration']:
+                continue  # Skip expired codes
+            
+            expiration_date = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(info['expiration']))
+            remaining_time = info['expiration'] - current_time
+            remaining_days = int(remaining_time // (24 * 60 * 60))
+            remaining_hours = int((remaining_time % (24 * 60 * 60)) // (60 * 60))
+            
+            codes_message += f"🔑 <b>Code:</b> <code>{code}</code>\n"
+            codes_message += f"⏰ <b>Duration:</b> {info['duration_days']} day(s)\n"
+            codes_message += f"📅 <b>Expires:</b> {expiration_date}\n"
+            codes_message += f"⏳ <b>Remaining:</b> {remaining_days}d {remaining_hours}h\n\n"
+        
+        if codes_message == "📋 <b>Active Redeem Codes</b>\n\n":
+            codes_message += "❌ No active codes found."
+        
+        bot.reply_to(message, codes_message, parse_mode="HTML")
+    else:
+        bot.reply_to(message, "🚫 You are not authorized to view active codes.")
 
 @bot.message_handler(commands=["stats", "count", "user_count"])
 def user_stats(message):
