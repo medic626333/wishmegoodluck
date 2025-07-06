@@ -218,7 +218,7 @@ def is_bot_stopped():
 @bot.message_handler(content_types=["document"])
 def main(message):
 	if not is_user_allowed(message.from_user.id):
-		bot.reply_to(message, "You are not authorized to use this bot. for authorization dm to @ImposterOnline")
+		bot.reply_to(message, "You are not authorized to use this bot. for authorization dm to @god_forever")
 		return
 	dd = 0
 	live = 0
@@ -249,7 +249,7 @@ def main(message):
 				current_dir = os.getcwd()
 				for filename in os.listdir(current_dir):
 					if filename.endswith(".stop"):
-						bot.edit_message_text(chat_id=message.chat.id, message_id=ko, text='𝗦𝗧𝗢𝗣𝗣𝗘𝗗 ✅\n𝗕𝗢𝗧 𝗕𝗬 ➜ @ImposterOnline')
+						bot.edit_message_text(chat_id=message.chat.id, message_id=ko, text='𝗦𝗧𝗢𝗣𝗣𝗘𝗗 ✅\n𝗕𝗢𝗧 𝗕𝗬 ➜ @god_forever')
 						os.remove('stop.stop')
 						return
 			
@@ -295,7 +295,7 @@ def main(message):
 				cm6 = types.InlineKeyboardButton(" STOP 🛑 ", callback_data='stop')
 				mes.add(cm1, cm2, cm3, cm4, cm5, cm6)
 				bot.edit_message_text(chat_id=message.chat.id, message_id=ko, text='''Wait for processing 
-𝒃𝒚 ➜ @imposteronline''', reply_markup=mes)
+𝒃𝒚 ➜ @god_forever''', reply_markup=mes)
 				
 				try:
 					last = str(Tele(cc))
