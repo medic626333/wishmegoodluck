@@ -200,6 +200,31 @@ Required Owner ID: 1172862169
 
 Dm @ghostxdy Tᴏ Bᴜʏ Pʀᴇᴍɪᴜm""")
 
+@bot.message_handler(commands=["debug"])
+def debug_card(message):
+    if str(message.from_user.id) in owners:  # Only owner can debug
+        try:
+            # Extract the card number from the command
+            if len(message.text.split()) < 2:
+                bot.reply_to(message, "Please provide a card number to debug.\n\n<b>Usage:</b>\n<code>/debug 4743691099526774|02|2027|530</code>", parse_mode="HTML")
+                return
+            
+            cc = message.text.split('/debug ')[1]
+            username = message.from_user.username or "N/A"
+
+            bot.reply_to(message, "🔍 <b>Debugging card...</b>\n\n⏳ Please wait...", parse_mode="HTML")
+
+            # Get the raw response from the `Tele` function
+            try:
+                raw_response = str(Tele(cc))
+                bot.reply_to(message, f"🔍 <b>Debug Results</b>\n\n<b>Card:</b> <code>{cc}</code>\n<b>Raw Response:</b>\n<code>{raw_response}</code>", parse_mode="HTML")
+            except Exception as e:
+                bot.reply_to(message, f"❌ <b>Debug Error</b>\n\n<b>Card:</b> <code>{cc}</code>\n<b>Error:</b> {str(e)}", parse_mode="HTML")
+        except Exception as e:
+            bot.reply_to(message, f"❌ Unexpected error: {str(e)}")
+    else:
+        bot.reply_to(message, "🚫 You are not authorized to use debug commands.")
+
 @bot.message_handler(commands=["help", "commands"])
 def help_command(message):
     user_id = message.from_user.id
@@ -468,7 +493,7 @@ def main(message):
 				elif "succeeded" in last:
 					ch += 1
 					elapsed_time = time.time() - start_time
-					msg1 = f'''𝐀𝐩𝐩𝐫𝐨𝐯𝐞𝐝 ✅@ghostxdy
+					msg1 = f'''𝐀𝐩𝐩𝐫𝐨𝐯𝐞𝐝 ✅@god_forever
 					
 𝗖𝗮𝗿𝗱: {cc}𝐆𝐚𝐭𝐞𝐰𝐚𝐲: 1$ Charged
 𝐑𝐞𝐬𝐩𝐨𝐧𝐬𝐞: Card Checked Successfully
@@ -667,12 +692,15 @@ def single_check(message):
         typ = data.get('type', 'N/A')
         url = data.get('bank', {}).get('url', 'N/A') if isinstance(data.get('bank'), dict) else 'N/A'
         
-        if "requires_action" in last:
+        # Improved response parsing
+        last_lower = last.lower()
+        
+        if "requires_action" in last_lower or "vbv" in last_lower or "3d" in last_lower:
             message_ra = f'''✅ <b>LIVE CARD FOUND!</b>
 
 💳 <b>Card:</b> <code>{cc}</code>
 🏦 <b>Gateway:</b> 1$ Charged
-📊 <b>Response:</b> VBV Required
+📊 <b>Response:</b> VBV/3D Secure Required
 
 ℹ️ <b>Info:</b> {brand} - {typ} - {dicr}
 🏛️ <b>Issuer:</b> {bank}
@@ -689,7 +717,7 @@ def single_check(message):
             except:
                 pass
                 
-        elif "succeeded" in last:
+        elif "succeeded" in last_lower or "success" in last_lower or "approved" in last_lower or "charged" in last_lower:
             msg_sec = f'''✅ <b>CHARGED CARD FOUND!</b>
 
 💳 <b>Card:</b> <code>{cc}</code>
@@ -711,7 +739,7 @@ def single_check(message):
             except:
                 pass
                 
-        else:
+        elif "declined" in last_lower or "failed" in last_lower or "error" in last_lower or "invalid" in last_lower:
             msg_dec = f'''❌ <b>CARD DECLINED</b>
 
 💳 <b>Card:</b> <code>{cc}</code>
@@ -726,6 +754,22 @@ def single_check(message):
 👤 <b>Checked By:</b> @{username}
 🤖 <b>Bot By:</b> @god_forever'''
             bot.edit_message_text(msg_dec, chat_id=message.chat.id, message_id=initial_message.message_id, parse_mode="HTML")
+        else:
+            # Unknown response - show raw response for debugging
+            msg_unknown = f'''❓ <b>UNKNOWN RESPONSE</b>
+
+💳 <b>Card:</b> <code>{cc}</code>
+🏦 <b>Gateway:</b> 1$ Charged
+📊 <b>Response:</b> {last[:100]}...
+
+ℹ️ <b>Info:</b> {brand} - {typ} - {dicr}
+🏛️ <b>Issuer:</b> {bank}
+🌍 <b>Country:</b> {cn} {emj}
+
+⏱️ <b>Time:</b> 0 seconds
+👤 <b>Checked By:</b> @{username}
+🤖 <b>Bot By:</b> @god_forever'''
+            bot.edit_message_text(msg_unknown, chat_id=message.chat.id, message_id=initial_message.message_id, parse_mode="HTML")
             
     except Exception as e:
         print(f"Unexpected error: {e}")
