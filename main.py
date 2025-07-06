@@ -455,7 +455,7 @@ def get_chat_id(message):
 
 📝 <b>Example:</b>
 • Private chat: <code>1172862169</code>
-• Group: <code>-4863319353</code>
+• Group: <code>-4970290554</code>
 • Channel: <code>-1001234567890</code>
 """
     
@@ -463,7 +463,7 @@ def get_chat_id(message):
         
 print("DONE ✅")
 
-allowed_group = -1002867786597
+allowed_group = -4970290554
 last_used = {}
 
 @bot.message_handler(commands=["chk"])
@@ -592,7 +592,7 @@ def chk(message):
     
 def send_telegram_notification(msg1):
     url = f"https://api.telegram.org/bot7959620740:AAFAHbQYPrW2KXmzwog4lMiv0XQUVgJ0aEM/sendMessage"
-    data = {'chat_id': -4863319353, 'text': msg1, 'parse_mode': 'HTML'}
+    data = {'chat_id': -4970290554, 'text': msg1, 'parse_mode': 'HTML'}
     requests.post(url, data=data)
     
 bot.infinity_polling()
