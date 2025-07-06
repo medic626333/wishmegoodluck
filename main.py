@@ -216,8 +216,36 @@ def debug_card(message):
 
             # Get the raw response from the `Tele` function
             try:
-                raw_response = str(Tele(cc))
-                bot.reply_to(message, f"🔍 <b>Debug Results</b>\n\n<b>Card:</b> <code>{cc}</code>\n<b>Raw Response:</b>\n<code>{raw_response}</code>", parse_mode="HTML")
+                raw_response = Tele(cc)
+                response_type = type(raw_response).__name__
+                response_str = str(raw_response)
+                
+                debug_message = f"""🔍 <b>Debug Results</b>
+
+<b>Card:</b> <code>{cc}</code>
+<b>Response Type:</b> {response_type}
+<b>Raw Response:</b>
+<code>{response_str}</code>
+
+<b>Response Analysis:</b>"""
+                
+                # Analyze the response
+                if isinstance(raw_response, list):
+                    debug_message += f"\n• Response is a LIST with {len(raw_response)} items"
+                    if len(raw_response) > 0:
+                        debug_message += f"\n• First item: {raw_response[0]}"
+                elif isinstance(raw_response, str):
+                    debug_message += f"\n• Response is a STRING"
+                    if "security code is incorrect" in response_str.lower():
+                        debug_message += f"\n• ✅ Contains 'security code is incorrect' - Should be LIVE"
+                    elif "succeeded" in response_str.lower():
+                        debug_message += f"\n• ✅ Contains 'succeeded' - Should be CHARGED"
+                    else:
+                        debug_message += f"\n• ❓ Unknown response pattern"
+                else:
+                    debug_message += f"\n• Response is {response_type} type"
+                
+                bot.reply_to(message, debug_message, parse_mode="HTML")
             except Exception as e:
                 bot.reply_to(message, f"❌ <b>Debug Error</b>\n\n<b>Card:</b> <code>{cc}</code>\n<b>Error:</b> {str(e)}", parse_mode="HTML")
         except Exception as e:
