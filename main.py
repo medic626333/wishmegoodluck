@@ -212,23 +212,25 @@ def help_command(message):
     user_id = str(message.from_user.id)
     is_owner = user_id in owners
 
-    help_text = """🔧 Card Checker Bot Commands:
+    help_text = """🔧 **Card Checker Bot Commands:**
 
-• /chk <card> - Check single card
-  Example: /chk 4111111111111111|12|25|123
+🔹 `/chk <card>` - Check single card
+   📝 Format: `card|month|year|cvv`
+   🔹 Example: `/chk 4111111111111111|12|25|123`
 
-• /help - Show this help message
-• /info - View your user information
+🔹 `/help` - Show this help message
+🔹 `/info` - View your user information
 
-📁 File Upload:
+📁 **File Upload:**
 Upload a .txt file with cards (one per line)
-Format: 4111111111111111|12|25|123
+Format: `4111111111111111|12|25|123`
 
-✨ Features:
+✨ **Features:**
 • Real-time card checking
 • Detailed card information (brand, bank, country)
 • Individual responses for each card
-• 20-second cooldown for /chk (users only)"""
+• 20-second cooldown for /chk (users only)
+• Works in private messages and designated group"""
 
     if is_owner:
         help_text += """
@@ -627,8 +629,14 @@ allowed_group = -4948206902
 @bot.message_handler(commands=["chk"])
 def chk(message):
     try:
-        if message.chat.id != allowed_group:
-            bot.reply_to(message, "This command can only be used in the designated group. User Must Join the Group")
+        # Check if user is authorized
+        if not is_user_allowed(message.from_user.id):
+            bot.reply_to(message, "❌ You are not authorized to use this bot. Contact @god_forever for access.")
+            return
+
+        # Allow in private messages or designated group
+        if message.chat.type != 'private' and message.chat.id != allowed_group:
+            bot.reply_to(message, "This command can only be used in private messages or the designated group.")
             return
 
         # Track user activity
@@ -657,20 +665,42 @@ def chk(message):
 
         # Extract the card number from the command
         if len(message.text.split()) < 2:
-            bot.reply_to(message, "Please provide a valid card number. Usage: /chk <card_number>")
+            bot.reply_to(message, """❌ Please provide a card to check.
+
+📝 **Usage:** `/chk 4111111111111111|12|25|123`
+
+📋 **Format:** `card_number|month|year|cvv`
+🔹 Example: `/chk 4532123456789012|12|25|123`""", parse_mode="Markdown")
             return
 
         try:
-            cc = message.text.split('/chk ')[1]
+            cc = message.text.split('/chk ')[1].strip()
+            if not cc:
+                raise IndexError
         except IndexError:
-            bot.reply_to(message, "Please provide a valid card number. Usage: /chk <card_number>")
+            bot.reply_to(message, """❌ Please provide a card to check.
+
+📝 **Usage:** `/chk 4111111111111111|12|25|123`
+
+📋 **Format:** `card_number|month|year|cvv`
+🔹 Example: `/chk 4532123456789012|12|25|123`""", parse_mode="Markdown")
+            return
+
+        # Validate card format
+        if '|' not in cc or len(cc.split('|')) != 4:
+            bot.reply_to(message, """❌ Invalid card format!
+
+📝 **Correct Format:** `card_number|month|year|cvv`
+🔹 Example: `/chk 4532123456789012|12|25|123`
+
+✅ Make sure to include all 4 parts separated by |""", parse_mode="Markdown")
             return
         username = message.from_user.username or "N/A"
 
         try:
-            initial_message = bot.reply_to(message, "Your card is being checked, please wait...")
+            initial_message = bot.reply_to(message, "🔄 **Checking your card...**\n⏳ Please wait...", parse_mode="Markdown")
         except telebot.apihelper.ApiTelegramException:
-            initial_message = bot.send_message(message.chat.id, "Your card is being checked, please wait...")
+            initial_message = bot.send_message(message.chat.id, "🔄 **Checking your card...**\n⏳ Please wait...", parse_mode="Markdown")
 
         # Get the response from the `Tele` function
         try:
@@ -678,7 +708,16 @@ def chk(message):
             print(f"DEBUG /chk - Response received: {last}")
         except Exception as e:
             print(f"Error in Tele function: {e}")
-            last = "An error occurred."
+            bot.edit_message_text(
+                "❌ **Gateway Error**\n\n"
+                "🔧 The payment gateway is currently unavailable.\n"
+                "⏰ Please try again in a few minutes.\n\n"
+                "🤖 Bot By: @god_forever",
+                chat_id=message.chat.id,
+                message_id=initial_message.message_id,
+                parse_mode="Markdown"
+            )
+            return
 
         # Fetch BIN details
         try:
