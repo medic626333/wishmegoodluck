@@ -842,5 +842,11 @@ def start_bot_safely():
                 break
 
 if __name__ == "__main__":
-    print("🤖 Card Checker Bot Starting...")
-    start_bot_safely()
+    try:
+        print("🤖 Card Checker Bot Starting...")
+        print("📡 Initializing bot systems...")
+        start_bot_safely()
+    except Exception as e:
+        print(f"💥 Fatal error: {e}")
+        print("🔄 Bot will be restarted by the system service...")
+        sys.exit(1)
