@@ -50,6 +50,22 @@ owners = ["1172862169"]
 # Dictionary to track user cooldowns for /chk command
 user_cooldowns = {}
 
+# Dictionary to track active users who have used the bot
+active_users = {}
+
+def track_user_activity(user_id, username, first_name, last_name, command_used):
+    """Track user activity for the active users list"""
+    user_info = {
+        'user_id': str(user_id),
+        'username': username or "No Username",
+        'first_name': first_name or "N/A",
+        'last_name': last_name or "N/A",
+        'last_command': command_used,
+        'last_seen': time.time(),
+        'command_count': active_users.get(str(user_id), {}).get('command_count', 0) + 1
+    }
+    active_users[str(user_id)] = user_info
+
 # Function to check if the user's ID is in the id.txt file
 def is_user_allowed(user_id):
     try:
@@ -117,6 +133,15 @@ LOGS_GROUP_CHAT_ID = -4948206902
 
 @bot.message_handler(commands=["redeem"])
 def redeem_code(message):
+    # Track user activity
+    track_user_activity(
+        message.from_user.id,
+        message.from_user.username,
+        message.from_user.first_name,
+        message.from_user.last_name,
+        "/redeem"
+    )
+
     try:
         redeem_code = message.text.split()[1]
     except IndexError:
@@ -148,6 +173,16 @@ def redeem_code(message):
 @bot.message_handler(commands=["start"])
 def start(message):
     user_id = message.from_user.id
+
+    # Track user activity
+    track_user_activity(
+        user_id,
+        message.from_user.username,
+        message.from_user.first_name,
+        message.from_user.last_name,
+        "/start"
+    )
+
     if is_user_allowed(user_id):
         bot.reply_to(message, "You're authorized! Send the file to see the magic 🪄✨")
     else:
@@ -155,21 +190,35 @@ def start(message):
 You Are Not Authorized to Use this Bot
 
 ⤿ 𝙋𝙧𝙞𝙘𝙚 𝙇𝙞𝙨𝙩 ⚡
-⤿ 1 day - 90rs/3$ 
-★ 7 days - 180rs/6$ 
-★ 1 month - 400rs/18$ 
-★ lifetime - 800rs/20$ 
+⤿ 1 day - 90rs/3$
+★ 7 days - 180rs/6$
+★ 1 month - 400rs/18$
+★ lifetime - 800rs/20$
 
-Dm @god_forever Tᴏ Bᴜʏ Pʀᴇᴍɪᴜm""")
+Dm @god_forever Tᴏ Bᴜʏ Pʀᴇᴍɪᴜм""")
 
 @bot.message_handler(commands=["help"])
 def help_command(message):
+    # Track user activity
+    track_user_activity(
+        message.from_user.id,
+        message.from_user.username,
+        message.from_user.first_name,
+        message.from_user.last_name,
+        "/help"
+    )
+
+    # Check if user is owner to show admin commands
+    user_id = str(message.from_user.id)
+    is_owner = user_id in owners
+
     help_text = """🔧 Card Checker Bot Commands:
 
 • /chk <card> - Check single card
   Example: /chk 4111111111111111|12|25|123
 
 • /help - Show this help message
+• /info - View your user information
 
 📁 File Upload:
 Upload a .txt file with cards (one per line)
@@ -179,8 +228,19 @@ Format: 4111111111111111|12|25|123
 • Real-time card checking
 • Detailed card information (brand, bank, country)
 • Individual responses for each card
+• 20-second cooldown for /chk (users only)"""
 
-🤖 Bot By: @god_forever"""
+    if is_owner:
+        help_text += """
+
+👑 Owner Commands:
+• /add <user_id> - Add user to authorized list
+• /remove <user_id> - Remove user from authorized list
+• /code - Generate redeem code
+• /show_auth_users - View authorized users
+• /active_users - View users who are using the bot"""
+
+    help_text += "\n\n🤖 Bot By: @god_forever"
 
     bot.reply_to(message, help_text)
 
@@ -234,6 +294,15 @@ def user_info(message):
     username = message.from_user.username or "N/A"
     profile_link = f"<a href='tg://user?id={user_id}'>Profile Link</a>"
 
+    # Track user activity
+    track_user_activity(
+        user_id,
+        message.from_user.username,
+        message.from_user.first_name,
+        message.from_user.last_name,
+        "/info"
+    )
+
     # Check user status
     if str(user_id) in owners:
         status = "Owner 👑"
@@ -280,6 +349,24 @@ def main(message):
 	if not is_user_allowed(message.from_user.id):
 		bot.reply_to(message, "You are not authorized to use this bot. for authorization dm to @god_forever")
 		return
+
+	# Track user activity for bulk checking
+	track_user_activity(
+		message.from_user.id,
+		message.from_user.username,
+		message.from_user.first_name,
+		message.from_user.last_name,
+		"bulk_check"
+	)
+
+	# Track user activity for bulk checking
+	track_user_activity(
+		message.from_user.id,
+		message.from_user.username,
+		message.from_user.first_name,
+		message.from_user.last_name,
+		"bulk_check"
+	)
 	dd = 0
 	live = 0
 	ch = 0
@@ -484,7 +571,55 @@ def show_auth_users(message):
             bot.reply_to(message, "id.txt file not found. No authorized users.")
     else:
         bot.reply_to(message, "You are not authorized to view the list of authorized users.")
-        
+
+@bot.message_handler(commands=["active_users", "au", "users"])
+def show_active_users(message):
+    if str(message.from_user.id) in owners:  # Check if the sender is an owner
+        if not active_users:
+            bot.reply_to(message, "No active users found. Users will appear here after they interact with the bot.")
+            return
+
+        # Prepare the message with active user information
+        user_list = "<b>🔥 Active Bot Users</b>\n"
+        user_list += "━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        # Sort users by last seen time (most recent first)
+        sorted_users = sorted(active_users.items(), key=lambda x: x[1]['last_seen'], reverse=True)
+
+        for user_id, user_info in sorted_users:
+            username = user_info['username']
+            first_name = user_info['first_name']
+            last_command = user_info['last_command']
+            command_count = user_info['command_count']
+            last_seen = user_info['last_seen']
+
+            # Calculate time since last seen
+            time_diff = time.time() - last_seen
+            if time_diff < 60:
+                time_ago = f"{int(time_diff)}s ago"
+            elif time_diff < 3600:
+                time_ago = f"{int(time_diff/60)}m ago"
+            elif time_diff < 86400:
+                time_ago = f"{int(time_diff/3600)}h ago"
+            else:
+                time_ago = f"{int(time_diff/86400)}d ago"
+
+            # Check if user is still authorized
+            is_authorized = is_user_allowed(int(user_id))
+            status_emoji = "✅" if is_authorized else "❌"
+
+            user_list += f"👤 <b>{first_name}</b> (@{username})\n"
+            user_list += f"🆔 <code>{user_id}</code> {status_emoji}\n"
+            user_list += f"📊 Commands: {command_count} | Last: {last_command}\n"
+            user_list += f"⏰ {time_ago}\n\n"
+
+        user_list += f"<b>Total Active Users:</b> {len(active_users)}"
+
+        # Send the list to the owner
+        bot.reply_to(message, user_list, parse_mode="HTML")
+    else:
+        bot.reply_to(message, "You are not authorized to view the active users list.")
+
 print("DONE ✅")
 
 allowed_group = -4948206902
@@ -495,6 +630,15 @@ def chk(message):
         if message.chat.id != allowed_group:
             bot.reply_to(message, "This command can only be used in the designated group. User Must Join the Group")
             return
+
+        # Track user activity
+        track_user_activity(
+            message.from_user.id,
+            message.from_user.username,
+            message.from_user.first_name,
+            message.from_user.last_name,
+            "/chk"
+        )
 
         # Check cooldown for regular users (not owners)
         user_id = str(message.from_user.id)

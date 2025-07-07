@@ -15,6 +15,7 @@ A Telegram bot for checking credit card validity with advanced features includin
 - **Owner Privileges**: Special permissions for bot owners
 - **Redeem Codes**: Generate and redeem access codes
 - **User Information**: View user details and authorization status
+- **Active User Tracking**: Monitor users who are actively using the bot
 
 ### Advanced Features
 - **Cooldown Timer**: 20-second cooldown for `/chk` command (users only, owners exempt)
@@ -37,6 +38,7 @@ A Telegram bot for checking credit card validity with advanced features includin
 - `/remove <user_id>` - Remove user from authorized list
 - `/code` - Generate new redeem code
 - `/show_auth_users` - View all authorized users
+- `/active_users` - View users who are actively using the bot
 
 ## Installation
 
@@ -89,6 +91,19 @@ The bot implements a smart cooldown system:
 - **Owners**: No cooldown restrictions
 - **Precise Timing**: Shows exact remaining time to users
 - **Memory Efficient**: Only tracks active users
+
+## Active User Tracking
+
+The bot tracks users who actively interact with it:
+- **Real-time Monitoring**: Tracks user activity across all commands
+- **Detailed Information**: Shows username, command count, last command used
+- **Time Tracking**: Displays when users were last seen (seconds/minutes/hours/days ago)
+- **Authorization Status**: Shows if users are still authorized (✅/❌)
+- **Owner Access**: Only owners can view the active users list
+- **Commands Tracked**: `/start`, `/chk`, `/info`, `/help`, `/redeem`, bulk checking
+
+### Active Users Command
+Use `/active_users`, `/au`, or `/users` to view the list of users who have interacted with the bot.
 
 ## Gateway Integration
 
