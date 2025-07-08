@@ -225,11 +225,55 @@ def help_command(message):
         "/help"
     )
 
-    # Check if user is owner to show admin commands
+    # Check user permissions
     user_id = str(message.from_user.id)
     is_owner = user_id in owners
+    is_authorized = is_user_allowed(message.from_user.id)
 
-    help_text = """🔧 **Card Checker Bot Commands:**
+    if not is_authorized:
+        # Show limited help for unauthorized users
+        help_text = """🔧 **Card Checker Bot**
+
+❌ You are not authorized to use this bot.
+
+� **Get Access:**
+Contact @god_forever to purchase premium access
+
+📋 **Pricing:**
+• 1 day - 90rs/3$
+• 7 days - 180rs/6$
+• 1 month - 400rs/18$
+• Lifetime - 800rs/20$
+
+🎁 **Redeem Code:**
+If you have a redeem code, use: `/redeem <code>`"""
+
+    elif is_owner:
+        # Show full help for owners
+        help_text = """🔧 **Card Checker Bot - Owner Panel**
+
+👑 **User Commands:**
+🔹 `/chk <card>` - Check single card
+🔹 `/help` - Show this help message
+🔹 `/cmds` - Show all available commands
+🔹 `/info` - View user information
+
+👑 **Owner Commands:**
+🔹 `/add <user_id>` - Add user to authorized list
+🔹 `/remove <user_id>` - Remove user from authorized list
+🔹 `/code` - Generate redeem code
+🔹 `/show_auth_users` - View authorized users
+🔹 `/active_users` - View active bot users
+🔹 `/concurrent` - View server load
+
+✨ **Owner Benefits:**
+• No cooldown restrictions
+• Full administrative control
+• Real-time monitoring"""
+
+    else:
+        # Show standard help for authorized users
+        help_text = """🔧 **Card Checker Bot**
 
 🔹 `/chk <card>` - Check single card
    📝 Format: `card|month|year|cvv`
@@ -239,30 +283,103 @@ def help_command(message):
 🔹 `/info` - View your user information
 
 📁 **File Upload:**
-Upload a .txt file with cards (one per line)
-Format: `4111111111111111|12|25|123`
+Upload .txt file with cards (one per line)
 
-✨ **Features:**
-• Real-time card checking
-• Detailed card information (brand, bank, country)
-• Individual responses for each card
-• 20-second cooldown for /chk (users only)
-• Works in private messages and designated group"""
-
-    if is_owner:
-        help_text += """
-
-👑 Owner Commands:
-• /add <user_id> - Add user to authorized list
-• /remove <user_id> - Remove user from authorized list
-• /code - Generate redeem code
-• /show_auth_users - View authorized users
-• /active_users - View users who are using the bot
-• /concurrent - View current server load and active checks"""
+⏰ **Cooldown:** 20 seconds between /chk commands
+🌐 **Usage:** Works in private messages"""
 
     help_text += "\n\n🤖 Bot By: @god_forever"
 
-    bot.reply_to(message, help_text)
+    bot.reply_to(message, help_text, parse_mode="Markdown")
+
+@bot.message_handler(commands=["cmds", "commands", "all_commands"])
+def show_all_commands(message):
+    # Track user activity
+    track_user_activity(
+        message.from_user.id,
+        message.from_user.username,
+        message.from_user.first_name,
+        message.from_user.last_name,
+        "/cmds"
+    )
+
+    # Check user permissions
+    user_id = str(message.from_user.id)
+    is_owner = user_id in owners
+    is_authorized = is_user_allowed(message.from_user.id)
+
+    if not is_authorized:
+        bot.reply_to(message, """🔧 **Available Commands**
+
+❌ You are not authorized to use this bot.
+
+**Available for everyone:**
+🔹 `/help` - Show help message
+🔹 `/redeem <code>` - Redeem access code
+
+💰 Contact @god_forever for premium access
+
+🤖 Bot By: @god_forever""", parse_mode="Markdown")
+        return
+
+    # Comprehensive command list
+    cmds_text = """📋 **All Available Commands**
+━━━━━━━━━━━━━━━━━━━━
+
+🔹 **Card Checking:**
+• `/chk <card>` - Check single card
+  Format: `card|month|year|cvv`
+  Example: `/chk 4111111111111111|12|25|123`
+
+🔹 **Information:**
+• `/help` - Show help message
+• `/cmds` - Show this command list
+• `/info` - View your user information
+
+🔹 **File Processing:**
+• Upload .txt file - Bulk check cards from file
+
+🔹 **Account:**
+• `/redeem <code>` - Redeem access code"""
+
+    if is_owner:
+        cmds_text += """
+
+👑 **Owner Commands:**
+• `/add <user_id>` - Add user to authorized list
+• `/remove <user_id>` - Remove user from authorized list
+• `/code` - Generate new redeem code
+
+👑 **Monitoring:**
+• `/show_auth_users` - View authorized users
+• `/active_users` - View active bot users
+• `/concurrent` - View server load and active checks
+
+👑 **Aliases:**
+• `/sau`, `/see_list` - Same as show_auth_users
+• `/au`, `/users` - Same as active_users
+• `/cc_status`, `/load` - Same as concurrent
+
+✨ **Owner Benefits:**
+• No cooldown restrictions (20s for users)
+• Access to all monitoring tools
+• Full administrative control"""
+
+    else:
+        cmds_text += """
+
+⏰ **Limitations:**
+• 20-second cooldown between /chk commands
+• Maximum 10 concurrent users checking
+
+✨ **Features:**
+• Real-time card validation
+• Detailed card information (brand, bank, country)
+• Works in private messages and designated group"""
+
+    cmds_text += "\n\n🤖 Bot By: @god_forever"
+
+    bot.reply_to(message, cmds_text, parse_mode="Markdown")
 
 LOGS_GROUP_CHAT_ID = -4948206902 # Replace with your logs group chat ID
 
@@ -323,25 +440,62 @@ def user_info(message):
         "/info"
     )
 
-    # Check user status
+    # Check user status and permissions
     if str(user_id) in owners:
         status = "Owner 👑"
+        permissions = "Full Access"
+        cooldown_status = "No Cooldown"
     elif is_user_allowed(user_id):
-        status = "Authorised ✅"
+        status = "Authorized ✅"
+        permissions = "Standard Access"
+        cooldown_status = "20 Second Cooldown"
     else:
-        status = "Not-Authorised ❌"
+        status = "Not-Authorized ❌"
+        permissions = "No Access"
+        cooldown_status = "N/A"
+
+    # Get user activity info
+    user_activity = active_users.get(str(user_id), {})
+    command_count = user_activity.get('command_count', 0)
+    last_command = user_activity.get('last_command', 'None')
+
+    # Check cooldown status
+    cooldown_remaining = 0
+    if str(user_id) not in owners and str(user_id) in user_cooldowns:
+        time_since_last = time.time() - user_cooldowns[str(user_id)]
+        if time_since_last < 20:
+            cooldown_remaining = 20 - int(time_since_last)
 
     # Formatted response
     response = (
-        f"🔍 <b>Your Info</b>\n"
-        f"━━━━━━━━━━━━━━\n"
-        f"👤 <b>First Name:</b> {first_name}\n"
-        f"👤 <b>Last Name:</b> {last_name}\n"
-        f"🆔 <b>ID:</b> <code>{user_id}</code>\n"
-        f"📛 <b>Username:</b> @{username}\n"
-        f"🔗 <b>Profile Link:</b> {profile_link}\n"
-        f"📋 <b>Status:</b> {status}"
+        f"🔍 <b>Your Information</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"👤 <b>Name:</b> {first_name} {last_name}\n"
+        f"� <b>Username:</b> @{username}\n"
+        f"🆔 <b>User ID:</b> <code>{user_id}</code>\n"
+        f"📋 <b>Status:</b> {status}\n"
+        f"� <b>Permissions:</b> {permissions}\n"
+        f"⏰ <b>Cooldown:</b> {cooldown_status}\n"
     )
+
+    if cooldown_remaining > 0:
+        response += f"🕐 <b>Cooldown Remaining:</b> {cooldown_remaining} seconds\n"
+
+    response += (
+        f"📊 <b>Commands Used:</b> {command_count}\n"
+        f"🔧 <b>Last Command:</b> {last_command}\n"
+        f"🔗 <b>Profile:</b> {profile_link}"
+    )
+
+    if str(user_id) in owners:
+        # Show additional owner info
+        current_concurrent = len(concurrent_checks)
+        response += (
+            f"\n\n👑 <b>Owner Panel:</b>\n"
+            f"� <b>Active Checks:</b> {current_concurrent}/{MAX_CONCURRENT_CHECKS}\n"
+            f"👥 <b>Total Users:</b> {len(active_users)}\n"
+            f"📈 <b>Server Load:</b> {(current_concurrent/MAX_CONCURRENT_CHECKS)*100:.1f}%"
+        )
     
     bot.reply_to(message, response, parse_mode="HTML")
 	
