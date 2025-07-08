@@ -695,6 +695,35 @@ def chk(message):
 
 ✅ Make sure to include all 4 parts separated by |""", parse_mode="Markdown")
             return
+
+        # Additional validation
+        try:
+            card_parts = cc.split('|')
+            card_number = card_parts[0].strip()
+            month = card_parts[1].strip()
+            year = card_parts[2].strip()
+            cvv = card_parts[3].strip()
+
+            # Basic validation
+            if not card_number.isdigit() or len(card_number) < 13 or len(card_number) > 19:
+                bot.reply_to(message, "❌ Invalid card number! Must be 13-19 digits.", parse_mode="Markdown")
+                return
+
+            if not month.isdigit() or int(month) < 1 or int(month) > 12:
+                bot.reply_to(message, "❌ Invalid month! Must be 01-12.", parse_mode="Markdown")
+                return
+
+            if not year.isdigit() or len(year) != 2:
+                bot.reply_to(message, "❌ Invalid year! Must be 2 digits (e.g., 25 for 2025).", parse_mode="Markdown")
+                return
+
+            if not cvv.isdigit() or len(cvv) < 3 or len(cvv) > 4:
+                bot.reply_to(message, "❌ Invalid CVV! Must be 3-4 digits.", parse_mode="Markdown")
+                return
+
+        except (ValueError, IndexError) as e:
+            bot.reply_to(message, f"❌ Card validation error: {str(e)}", parse_mode="Markdown")
+            return
         username = message.from_user.username or "N/A"
 
         try:
@@ -704,15 +733,20 @@ def chk(message):
 
         # Get the response from the `Tele` function
         try:
+            print(f"DEBUG /chk - Processing card: {cc[:4]}****")
             last = str(Tele(cc))
             print(f"DEBUG /chk - Response received: {last}")
         except Exception as e:
             print(f"Error in Tele function: {e}")
+            import traceback
+            traceback.print_exc()
+
             bot.edit_message_text(
-                "❌ **Gateway Error**\n\n"
-                "🔧 The payment gateway is currently unavailable.\n"
-                "⏰ Please try again in a few minutes.\n\n"
-                "🤖 Bot By: @god_forever",
+                f"❌ **Gateway Error**\n\n"
+                f"🔧 The payment gateway is currently unavailable.\n"
+                f"⏰ Please try again in a few minutes.\n"
+                f"📝 Error: {str(e)}\n\n"
+                f"🤖 Bot By: @god_forever",
                 chat_id=message.chat.id,
                 message_id=initial_message.message_id,
                 parse_mode="Markdown"
@@ -803,8 +837,26 @@ def chk(message):
             bot.edit_message_text(msg_dec, chat_id=message.chat.id, message_id=initial_message.message_id)
             
     except Exception as e:
-        print(f"Unexpected error: {e}")
-        bot.reply_to(message, "An unexpected error occurred. Please try again later.")
+        print(f"Unexpected error in /chk command: {e}")
+        import traceback
+        traceback.print_exc()
+
+        # Send detailed error message
+        error_msg = f"""❌ **Error Processing Card**
+
+🔧 **Issue:** {str(e)}
+
+💡 **Please try:**
+• Check card format: `card|month|year|cvv`
+• Example: `/chk 4111111111111111|12|25|123`
+• Contact @god_forever if issue persists
+
+🤖 Bot By: @god_forever"""
+
+        try:
+            bot.reply_to(message, error_msg, parse_mode="Markdown")
+        except:
+            bot.reply_to(message, "❌ An error occurred. Please check your card format and try again.")
     
     
 def send_telegram_notification(msg1):
