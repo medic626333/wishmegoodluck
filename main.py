@@ -53,6 +53,10 @@ user_cooldowns = {}
 # Dictionary to track active users who have used the bot
 active_users = {}
 
+# Dictionary to track concurrent checking sessions
+concurrent_checks = {}
+MAX_CONCURRENT_CHECKS = 10  # Maximum simultaneous checks allowed
+
 def track_user_activity(user_id, username, first_name, last_name, command_used):
     """Track user activity for the active users list"""
     user_info = {
@@ -65,6 +69,19 @@ def track_user_activity(user_id, username, first_name, last_name, command_used):
         'command_count': active_users.get(str(user_id), {}).get('command_count', 0) + 1
     }
     active_users[str(user_id)] = user_info
+
+def cleanup_stale_checks():
+    """Remove stale concurrent checks (older than 2 minutes)"""
+    current_time = time.time()
+    stale_checks = []
+
+    for check_id, check_info in concurrent_checks.items():
+        if current_time - check_info['start_time'] > 120:  # 2 minutes
+            stale_checks.append(check_id)
+
+    for check_id in stale_checks:
+        concurrent_checks.pop(check_id, None)
+        print(f"Cleaned up stale check: {check_id}")
 
 # Function to check if the user's ID is in the id.txt file
 def is_user_allowed(user_id):
@@ -240,7 +257,8 @@ Format: `4111111111111111|12|25|123`
 • /remove <user_id> - Remove user from authorized list
 • /code - Generate redeem code
 • /show_auth_users - View authorized users
-• /active_users - View users who are using the bot"""
+• /active_users - View users who are using the bot
+• /concurrent - View current server load and active checks"""
 
     help_text += "\n\n🤖 Bot By: @god_forever"
 
@@ -622,6 +640,34 @@ def show_active_users(message):
     else:
         bot.reply_to(message, "You are not authorized to view the active users list.")
 
+@bot.message_handler(commands=["concurrent", "cc_status", "load"])
+def show_concurrent_usage(message):
+    if str(message.from_user.id) in owners:  # Check if the sender is an owner
+        current_checks = len(concurrent_checks)
+
+        if current_checks == 0:
+            bot.reply_to(message, "✅ **No Active Checks**\n\nAll users are idle. Server ready for new requests.", parse_mode="Markdown")
+            return
+
+        # Prepare concurrent usage report
+        usage_report = f"📊 **Concurrent Usage Report**\n"
+        usage_report += f"━━━━━━━━━━━━━━━━━━━━\n\n"
+        usage_report += f"🔄 **Active Checks:** {current_checks}/{MAX_CONCURRENT_CHECKS}\n"
+        usage_report += f"📈 **Load:** {(current_checks/MAX_CONCURRENT_CHECKS)*100:.1f}%\n\n"
+
+        if current_checks > 0:
+            usage_report += "👥 **Currently Checking:**\n"
+            for check_id, check_info in concurrent_checks.items():
+                username = check_info['username']
+                duration = int(time.time() - check_info['start_time'])
+                usage_report += f"• @{username} ({duration}s ago)\n"
+
+        usage_report += f"\n⚙️ **Server Status:** {'🟡 Busy' if current_checks > 7 else '🟢 Normal'}"
+
+        bot.reply_to(message, usage_report, parse_mode="Markdown")
+    else:
+        bot.reply_to(message, "You are not authorized to view server status.")
+
 print("DONE ✅")
 
 allowed_group = -4948206902
@@ -648,6 +694,18 @@ def chk(message):
             "/chk"
         )
 
+        # Clean up stale checks first
+        cleanup_stale_checks()
+
+        # Check concurrent usage limits
+        current_concurrent = len(concurrent_checks)
+        if current_concurrent >= MAX_CONCURRENT_CHECKS:
+            bot.reply_to(message, f"🚫 **Server Busy**\n\n"
+                                f"⏳ Too many users are checking cards right now ({current_concurrent}/{MAX_CONCURRENT_CHECKS})\n"
+                                f"🔄 Please try again in a few seconds.\n\n"
+                                f"🤖 Bot By: @god_forever", parse_mode="Markdown")
+            return
+
         # Check cooldown for regular users (not owners)
         user_id = str(message.from_user.id)
         current_time = time.time()
@@ -662,6 +720,14 @@ def chk(message):
 
             # Update the user's last usage time
             user_cooldowns[user_id] = current_time
+
+        # Add user to concurrent checks tracking
+        check_id = f"{user_id}_{current_time}"
+        concurrent_checks[check_id] = {
+            'user_id': user_id,
+            'username': message.from_user.username or 'Unknown',
+            'start_time': current_time
+        }
 
         # Extract the card number from the command
         if len(message.text.split()) < 2:
@@ -835,8 +901,15 @@ def chk(message):
 𝐂𝐡𝐞𝐜𝐤𝐞𝐝 𝐁𝐲: @{username}
 𝐁𝐨𝐭 𝐁𝐲: @god_forever'''
             bot.edit_message_text(msg_dec, chat_id=message.chat.id, message_id=initial_message.message_id)
-            
+
+        # Clean up concurrent check tracking
+        if 'check_id' in locals():
+            concurrent_checks.pop(check_id, None)
+
     except Exception as e:
+        # Clean up concurrent check tracking on error
+        if 'check_id' in locals():
+            concurrent_checks.pop(check_id, None)
         print(f"Unexpected error in /chk command: {e}")
         import traceback
         traceback.print_exc()
